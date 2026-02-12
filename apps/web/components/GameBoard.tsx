@@ -10,10 +10,10 @@ interface GameBoardProps {
 export default function GameBoard({ gameState }: GameBoardProps) {
   const { socket } = useSocket();
   const [isSpymaster, setIsSpymaster] = useState(false);
+  const [copied, setCopied] = useState(false); // Feedback state
 
   const handleCardClick = (cardId: string) => {
     if (!socket || isSpymaster) return;
-    
     socket.emit("reveal_card", { 
       roomCode: gameState.roomCode, 
       cardId 
@@ -27,10 +27,16 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     }
   };
 
+  const copyCode = () => {
+    navigator.clipboard.writeText(gameState.roomCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto p-4 flex flex-col items-center">
       
-      {/* --- Control Bar (Spymaster Toggle & Restart) --- */}
+      {/* --- Control Bar --- */}
       <div className="w-full flex justify-between items-center mb-6 px-2">
         <button 
           onClick={() => setIsSpymaster(!isSpymaster)}
@@ -68,12 +74,19 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           RED: {gameState.scores.red}
         </div>
         
-        <div className="flex flex-col items-center">
-          <div className="text-[10px] md:text-xs text-neutral-600 tracking-[0.2em] mb-1">SECURE CHANNEL</div>
-          <div className="bg-neutral-900 px-6 py-2 rounded border border-neutral-800 text-white font-mono font-bold tracking-widest text-lg md:text-xl">
+        {/* Room Code with Copy */}
+        <button 
+          onClick={copyCode}
+          className="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform"
+          title="Click to copy code"
+        >
+          <div className="text-[10px] md:text-xs text-neutral-600 tracking-[0.2em] mb-1 group-hover:text-neutral-400">
+            {copied ? "COPIED!" : "SECURE CHANNEL"}
+          </div>
+          <div className="bg-neutral-900 px-6 py-2 rounded border border-neutral-800 group-hover:border-neutral-600 text-white font-mono font-bold tracking-widest text-lg md:text-xl transition-colors">
             {gameState.roomCode}
           </div>
-        </div>
+        </button>
         
         <div className={`font-black transition-all duration-500 ${gameState.turn === 'blue' ? 'text-blue-500 scale-110 drop-shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'text-blue-900/50'}`}>
           BLUE: {gameState.scores.blue}
