@@ -37,15 +37,22 @@ export interface Card {
   revealed: boolean;
 }
 
+// New: Structure for a clue
+export interface Clue {
+  word: string;
+  number: number;
+}
+
 export interface GameState {
   roomCode: string;
   phase: "lobby" | "playing" | "game_over";
   turn: Team;
   board: Card[];
-  players: Player[]; // New: List of players
+  players: Player[];
   scores: { red: number; blue: number };
   winner: Team | null;
   logs: string[];
+  currentClue: Clue | null; // New: Tracks the active clue
 }
 
 // --- Validation Schemas ---
