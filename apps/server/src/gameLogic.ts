@@ -1,18 +1,8 @@
 import { GameState, Card, TEAMS, CARD_TYPES } from "@operative/shared";
-
-// EXPANDED WORD LIST (50+ words)
-const WORD_LIST = [
-  "ENGINE", "HOTEL", "TOKYO", "KEY", "CODE", "AGENT", "SPACE", "DANCE",
-  "APPLE", "GLASS", "SCREEN", "SOUND", "WAVE", "LIGHT", "ZERO", "GHOST",
-  "TIME", "LINE", "WEB", "ROBOT", "IRON", "GOLD", "SILVER", "LEMON", "MOON",
-  "NIGHT", "SKY", "STAR", "PLANET", "ROCK", "PAPER", "SCISSORS", "FIRE",
-  "WATER", "WIND", "EARTH", "MAGIC", "LION", "TIGER", "BEAR", "SHARK",
-  "DOCTOR", "NURSE", "KING", "QUEEN", "PIZZA", "BURGER", "TRAIN", "PLANE",
-  "PILOT", "BOMB", "LASER", "ALIEN", "ZOMBIE", "VAMPIRE", "NINJA", "PIRATE"
-];
+import { WORD_LIST } from "./words"; // Import the massive list
 
 export function generateGame(roomCode: string): GameState {
-  // 1. Shuffle Words (Pick 25 random words)
+  // 1. Shuffle Words (Pick 25 random words from the massive list)
   const shuffledWords = [...WORD_LIST]
     .sort(() => 0.5 - Math.random())
     .slice(0, 25);
@@ -32,9 +22,6 @@ export function generateGame(roomCode: string): GameState {
     type: types[index],
     revealed: false 
   }));
-
-  // Determine starting team based on who has 9 cards (It's usually Red in this logic, but good to be explicit)
-  // In this fixed logic, Red always has 9, so Red always starts.
   
   return {
     roomCode,
