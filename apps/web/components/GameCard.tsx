@@ -1,4 +1,5 @@
 import { Card, CARD_TYPES } from "@operative/shared";
+import styles from "./GameCard.module.css";
 
 interface GameCardProps {
   card: Card;
@@ -8,77 +9,48 @@ interface GameCardProps {
 }
 
 export default function GameCard({ card, onClick, disabled, isSpymaster }: GameCardProps) {
-  // Determine the styling for the BACK of the card (Revealed State)
-  let backBg = "bg-neutral-800";
-  let backBorder = "border-neutral-700";
-  let backText = "text-white";
-  let Icon = null;
-
-  switch (card.type) {
-    case CARD_TYPES.RED:
-      backBg = "bg-red-600";
-      backBorder = "border-red-800";
-      break;
-    case CARD_TYPES.BLUE:
-      backBg = "bg-blue-600";
-      backBorder = "border-blue-800";
-      break;
-    case CARD_TYPES.NEUTRAL:
-      backBg = "bg-amber-100";
-      backText = "text-neutral-900";
-      backBorder = "border-amber-300";
-      break;
-    case CARD_TYPES.ASSASSIN:
-      backBg = "bg-neutral-950";
-      backBorder = "border-neutral-800";
-      backText = "text-red-500";
-      Icon = <span className="text-4xl opacity-50">☠</span>;
-      break;
-  }
-
-  // Determine Spymaster Hint (Border Only)
-  let spymasterBorder = "";
-  if (isSpymaster && !card.revealed) {
+  
+  // Logic to determine classes
+  const getBackClass = () => {
     switch (card.type) {
-      case CARD_TYPES.RED: spymasterBorder = "border-red-500/50 bg-red-900/10"; break;
-      case CARD_TYPES.BLUE: spymasterBorder = "border-blue-500/50 bg-blue-900/10"; break;
-      case CARD_TYPES.NEUTRAL: spymasterBorder = "border-amber-500/30"; break;
-      case CARD_TYPES.ASSASSIN: spymasterBorder = "border-neutral-500/50 bg-black"; break;
+      case CARD_TYPES.RED: return styles.backRed;
+      case CARD_TYPES.BLUE: return styles.backBlue;
+      case CARD_TYPES.NEUTRAL: return styles.backNeutral;
+      case CARD_TYPES.ASSASSIN: return styles.backAssassin;
+      default: return "";
     }
-  }
+  };
+
+  const getHintClass = () => {
+    if (!isSpymaster || card.revealed) return "";
+    switch (card.type) {
+      case CARD_TYPES.RED: return styles.hintRed;
+      case CARD_TYPES.BLUE: return styles.hintBlue;
+      case CARD_TYPES.NEUTRAL: return styles.hintNeutral;
+      case CARD_TYPES.ASSASSIN: return styles.hintAssassin;
+      default: return "";
+    }
+  };
+
+  const isInteractive = !card.revealed && !disabled && !isSpymaster;
 
   return (
-    <div className="relative w-full aspect-[4/3] perspective-1000">
-      <div
-        className={`
-          w-full h-full relative transition-all duration-500 transform-style-3d cursor-pointer
-          ${card.revealed ? "rotate-y-180" : ""}
-          ${!card.revealed && !disabled && !isSpymaster ? "hover:-translate-y-1" : ""}
-        `}
-        onClick={(!card.revealed && !disabled && !isSpymaster) ? onClick : undefined}
+    <div className={styles.container}>
+      <div 
+        className={`${styles.cardInner} ${card.revealed ? styles.isRevealed : ""} ${isInteractive ? styles.isInteractive : ""}`}
+        onClick={isInteractive ? onClick : undefined}
       >
-        {/* --- FRONT FACE (Hidden) --- */}
-        <div className={`
-          absolute inset-0 w-full h-full backface-hidden
-          flex items-center justify-center rounded-lg shadow-lg border-b-4
-          bg-neutral-800 text-white font-bold uppercase tracking-widest text-xs md:text-sm lg:text-base
-          transition-colors border-neutral-700
-          ${spymasterBorder}
-          ${isSpymaster && card.type === CARD_TYPES.ASSASSIN ? "text-red-500" : ""}
-        `}>
+        {/* FRONT */}
+        <div className={`${styles.face} ${styles.front} ${getHintClass()}`}>
           {card.word}
-          {/* Spymaster Icon Hint */}
-          {isSpymaster && card.type === CARD_TYPES.ASSASSIN && <span className="absolute top-1 right-1 text-[10px]">☠</span>}
+          {isSpymaster && card.type === CARD_TYPES.ASSASSIN && (
+             <span style={{position:'absolute', top: 4, right: 4, fontSize: 10}}>☠</span>
+          )}
         </div>
 
-        {/* --- BACK FACE (Revealed) --- */}
-        <div className={`
-          absolute inset-0 w-full h-full backface-hidden rotate-y-180
-          flex items-center justify-center rounded-lg shadow-inner
-          ${backBg} ${backText} ${backBorder} border-4
-          font-bold uppercase tracking-widest text-xs md:text-sm lg:text-base
-        `}>
-          {Icon ? Icon : card.word}
+        {/* BACK */}
+        <div className={`${styles.face} ${styles.back} ${getBackClass()}`}>
+          {card.type === CARD_TYPES.ASSASSIN ? <span className={styles.assassinIcon}>☠</span> : card.word}
         </div>
       </div>
     </div>
