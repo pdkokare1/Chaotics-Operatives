@@ -2,12 +2,10 @@ import { GameState, Card, TEAMS, CARD_TYPES, Player, Team, ROLES } from "@operat
 import { WORD_LIST } from "./words";
 
 export function generateGame(roomCode: string): GameState {
-  // 1. Shuffle Words
   const shuffledWords = [...WORD_LIST]
     .sort(() => 0.5 - Math.random())
     .slice(0, 25);
 
-  // 2. Assign Colors
   const types = [
     ...Array(9).fill(CARD_TYPES.RED),
     ...Array(8).fill(CARD_TYPES.BLUE),
@@ -15,7 +13,6 @@ export function generateGame(roomCode: string): GameState {
     CARD_TYPES.ASSASSIN
   ].sort(() => 0.5 - Math.random());
 
-  // 3. Build Board
   const board: Card[] = shuffledWords.map((word, index) => ({
     id: `card-${index}`,
     word,
@@ -25,19 +22,19 @@ export function generateGame(roomCode: string): GameState {
 
   return {
     roomCode,
-    phase: "lobby", // Start in Lobby now!
+    phase: "lobby",
     turn: TEAMS.RED,
     board,
-    players: [], // Start empty
+    players: [],
     scores: { red: 9, blue: 8 },
     winner: null,
-    logs: ["Waiting for players..."]
+    logs: ["Waiting for players..."],
+    currentClue: null // Start with no clue
   };
 }
 
 // --- Player Management ---
 export function addPlayer(gameState: GameState, id: string, name: string): GameState {
-  // Auto-assign team to balance numbers
   const redCount = gameState.players.filter(p => p.team === TEAMS.RED).length;
   const blueCount = gameState.players.filter(p => p.team === TEAMS.BLUE).length;
   const team = redCount <= blueCount ? TEAMS.RED : TEAMS.BLUE;
@@ -46,40 +43,54 @@ export function addPlayer(gameState: GameState, id: string, name: string): GameS
     id,
     name,
     team,
-    role: ROLES.OPERATIVE // Default to Operative
+    role: ROLES.OPERATIVE
   };
 
-  return {
-    ...gameState,
-    players: [...gameState.players, newPlayer]
-  };
+  return { ...gameState, players: [...gameState.players, newPlayer] };
 }
 
 export function removePlayer(gameState: GameState, id: string): GameState {
-  return {
-    ...gameState,
-    players: gameState.players.filter(p => p.id !== id)
-  };
+  return { ...gameState, players: gameState.players.filter(p => p.id !== id) };
 }
 
 export function updatePlayer(gameState: GameState, id: string, updates: Partial<Player>): GameState {
-  return {
-    ...gameState,
-    players: gameState.players.map(p => p.id === id ? { ...p, ...updates } : p)
-  };
+  return { ...gameState, players: gameState.players.map(p => p.id === id ? { ...p, ...updates } : p) };
 }
 
 export function startGame(gameState: GameState): GameState {
   if (gameState.phase !== "lobby") return gameState;
-  
   return {
     ...gameState,
     phase: "playing",
-    logs: [...gameState.logs, "Game Started! Red Team's Turn."]
+    logs: [...gameState.logs, "Mission Started. Red Team, awaiting orders."]
   };
 }
 
 // --- Gameplay Logic ---
+
+export function giveClue(gameState: GameState, word: string, number: number): GameState {
+  if (gameState.phase !== "playing") return gameState;
+  
+  return {
+    ...gameState,
+    currentClue: { word, number },
+    logs: [...gameState.logs, `${gameState.turn.toUpperCase()} Spymaster: ${word} (${number})`]
+  };
+}
+
+export function endTurn(gameState: GameState): GameState {
+  if (gameState.phase !== "playing") return gameState;
+  
+  const opponent = gameState.turn === TEAMS.RED ? TEAMS.BLUE : TEAMS.RED;
+  
+  return {
+    ...gameState,
+    turn: opponent,
+    currentClue: null, // Clear clue on turn switch
+    logs: [...gameState.logs, `${gameState.turn.toUpperCase()} ended their turn.`]
+  };
+}
+
 export function makeMove(gameState: GameState, cardId: string): GameState {
   if (gameState.phase !== "playing") return gameState;
   
@@ -96,6 +107,7 @@ export function makeMove(gameState: GameState, cardId: string): GameState {
   const currentTeam = newState.turn;
   const opponentTeam = currentTeam === TEAMS.RED ? TEAMS.BLUE : TEAMS.RED;
 
+  // Rule Application
   if (card.type === CARD_TYPES.ASSASSIN) {
     newState.phase = "game_over";
     newState.winner = opponentTeam;
@@ -103,6 +115,7 @@ export function makeMove(gameState: GameState, cardId: string): GameState {
   } 
   else if (card.type === CARD_TYPES.NEUTRAL) {
     newState.turn = opponentTeam;
+    newState.currentClue = null; // Clear clue
     newState.logs.push(`${currentTeam.toUpperCase()} hit a civilian. Turn over.`);
   } 
   else if (card.type === currentTeam) {
@@ -118,6 +131,7 @@ export function makeMove(gameState: GameState, cardId: string): GameState {
   else {
     newState.scores[opponentTeam] -= 1;
     newState.turn = opponentTeam;
+    newState.currentClue = null; // Clear clue
     newState.logs.push(`${currentTeam.toUpperCase()} found an Enemy Spy! Turn over.`);
 
     if (newState.scores[opponentTeam] === 0) {
