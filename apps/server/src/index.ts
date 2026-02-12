@@ -2,7 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import { generateGame, makeMove } from "./gameLogic"; // Import makeMove
+import { generateGame, makeMove } from "./gameLogic";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -34,7 +34,7 @@ io.on("connection", (socket) => {
     games.set(roomCode, gameState);
 
     socket.join(roomCode);
-    io.to(roomCode).emit("game_updated", gameState); // Broadcast to room
+    io.to(roomCode).emit("game_updated", gameState);
     console.log(`Game Created: ${roomCode}`);
   });
 
@@ -51,19 +51,28 @@ io.on("connection", (socket) => {
     }
   });
 
-  // --- NEW Event: Reveal Card ---
+  // Event: Reveal Card
   socket.on("reveal_card", ({ roomCode, cardId }) => {
     const code = roomCode.trim().toUpperCase();
-    
     if (games.has(code)) {
       let gameState = games.get(code);
-      
-      // Run the game rules
       gameState = makeMove(gameState, cardId);
-      
-      // Save and Broadcast the new state to EVERYONE in the room
       games.set(code, gameState);
       io.to(code).emit("game_updated", gameState);
+    }
+  });
+
+  // --- NEW EVENT: Restart Game ---
+  socket.on("restart_game", (roomCode: string) => {
+    const code = roomCode.trim().toUpperCase();
+    if (games.has(code)) {
+      // Regenerate the game but keep the same room code
+      const newGameState = generateGame(code);
+      newGameState.logs = ["Mission Reset. New Board Generated."];
+      
+      games.set(code, newGameState);
+      io.to(code).emit("game_updated", newGameState);
+      console.log(`Game Restarted: ${code}`);
     }
   });
 
