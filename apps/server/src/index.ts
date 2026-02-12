@@ -1,38 +1,45 @@
-// apps/server/src/index.ts
-import express from "express";
-import { createServer } from "http";
-import { Server } from "socket.io";
-import cors from "cors";
-import { GameState } from "@operative/shared"; // Importing from shared!
+import { z } from "zod";
 
-const app = express();
-app.use(cors());
+// --- Game Constants ---
+export const TEAMS = {
+  RED: "red",
+  BLUE: "blue",
+} as const;
 
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+export const CARD_TYPES = {
+  RED: "red",
+  BLUE: "blue",
+  NEUTRAL: "neutral",
+  ASSASSIN: "assassin",
+} as const;
+
+// --- Types ---
+export type Team = (typeof TEAMS)[keyof typeof TEAMS];
+export type CardType = (typeof CARD_TYPES)[keyof typeof CARD_TYPES];
+
+export interface Card {
+  id: string;
+  word: string;
+  type: CardType;
+  revealed: boolean;
+}
+
+export interface GameState {
+  roomCode: string;
+  phase: "lobby" | "playing" | "game_over";
+  turn: Team;
+  board: Card[];
+  scores: { red: number; blue: number };
+  winner: Team | null;
+  logs: string[]; // To show "Red Team guessed APPLE"
+}
+
+// --- Validation Schemas ---
+export const CreateGameSchema = z.object({
+  hostName: z.string().min(1),
 });
 
-const PORT = process.env.PORT || 3001;
-
-// Basic Health Check
-app.get("/", (req, res) => {
-  res.send("Operative Game Server Running");
-});
-
-io.on("connection", (socket) => {
-  console.log(`User Connected: ${socket.id}`);
-
-  // Example of using shared type
-  socket.on("join_room", (roomCode: string) => {
-    socket.join(roomCode);
-    console.log(`User joined room: ${roomCode}`);
-  });
-});
-
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+export const JoinGameSchema = z.object({
+  roomCode: z.string().length(4),
+  playerName: z.string().min(1),
 });
