@@ -1,25 +1,45 @@
-// packages/shared/src/index.ts
 import { z } from "zod";
 
-// --- Zod Schemas (Runtime Validation) ---
+// --- Game Constants ---
+export const TEAMS = {
+  RED: "red",
+  BLUE: "blue",
+} as const;
 
-export const GameStateSchema = z.object({
-  roomCode: z.string(),
-  status: z.enum(["lobby", "playing", "finished"]),
-  turn: z.enum(["red", "blue"]),
-  scores: z.object({
-    red: z.number(),
-    blue: z.number(),
-  }),
-});
+export const CARD_TYPES = {
+  RED: "red",
+  BLUE: "blue",
+  NEUTRAL: "neutral",
+  ASSASSIN: "assassin",
+} as const;
 
-// --- TypeScript Types (Compile-time Safety) ---
-
-export type GameState = z.infer<typeof GameStateSchema>;
+// --- Types ---
+export type Team = (typeof TEAMS)[keyof typeof TEAMS];
+export type CardType = (typeof CARD_TYPES)[keyof typeof CARD_TYPES];
 
 export interface Card {
   id: string;
   word: string;
-  type: "red" | "blue" | "civilian" | "assassin";
+  type: CardType;
   revealed: boolean;
 }
+
+export interface GameState {
+  roomCode: string;
+  phase: "lobby" | "playing" | "game_over";
+  turn: Team;
+  board: Card[];
+  scores: { red: number; blue: number };
+  winner: Team | null;
+  logs: string[]; // To show "Red Team guessed APPLE"
+}
+
+// --- Validation Schemas ---
+export const CreateGameSchema = z.object({
+  hostName: z.string().min(1),
+});
+
+export const JoinGameSchema = z.object({
+  roomCode: z.string().length(4),
+  playerName: z.string().min(1),
+});
