@@ -1,3 +1,4 @@
+// package.json
 {
   "name": "operative-monorepo",
   "private": true,
@@ -9,7 +10,8 @@
   },
   "devDependencies": {
     "turbo": "latest",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "typescript": "^5.2.2"
   },
   "packageManager": "pnpm@8.9.0",
   "workspaces": [
