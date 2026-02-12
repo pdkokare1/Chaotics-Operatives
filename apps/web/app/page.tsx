@@ -107,14 +107,14 @@ export default function Home() {
 
   if (gameState?.phase === "lobby") {
     return (
-      <main>
+      <main className={styles.container}>
         <Lobby gameState={gameState} currentPlayerId={socket.id} />
       </main>
     );
   }
 
   return (
-    <main style={{ padding: '2rem 0', minHeight: '100vh' }}>
+    <main className={styles.container} style={{ justifyContent: 'flex-start', padding: '2rem 0' }}>
       {gameState && <GameBoard gameState={gameState} />}
     </main>
   );
