@@ -1,11 +1,14 @@
 .container {
   width: 100%;
-  max-width: 900px;
+  min-height: 100vh;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  background-color: var(--bg-app);
+  position: relative;
+  z-index: 1;
 }
 
 .header {
@@ -18,6 +21,7 @@
   font-weight: 900;
   letter-spacing: -0.05em;
   margin-bottom: 0.5rem;
+  color: var(--text-main);
 }
 
 .codeBadge {
@@ -39,6 +43,7 @@
   font-weight: bold;
   font-size: 1.25rem;
   letter-spacing: 0.1em;
+  color: white;
 }
 
 .teamsGrid {
@@ -46,6 +51,7 @@
   grid-template-columns: 1fr;
   gap: 2rem;
   width: 100%;
+  max-width: 900px;
   margin-bottom: 3rem;
 }
 
@@ -97,6 +103,7 @@
   text-align: center;
   font-style: italic;
   opacity: 0.5;
+  color: var(--text-muted);
 }
 
 .startButton {
@@ -112,7 +119,6 @@
 }
 .startButton:active { transform: scale(0.95); }
 
-/* Player Card Sub-component Styles */
 .playerCard {
   display: flex;
   align-items: center;
