@@ -105,17 +105,14 @@ export default function Home() {
     );
   }
 
-  if (gameState?.phase === "lobby") {
-    return (
-      <main className={styles.container}>
-        <Lobby gameState={gameState} currentPlayerId={socket.id} />
-      </main>
-    );
-  }
-
+  // Use a generic wrapper for the game views to avoid Home.module.css conflicts
   return (
-    <main className={styles.container} style={{ justifyContent: 'flex-start', padding: '2rem 0' }}>
-      {gameState && <GameBoard gameState={gameState} />}
+    <main style={{ minHeight: '100vh', width: '100%' }}>
+      {gameState?.phase === "lobby" ? (
+        <Lobby gameState={gameState} currentPlayerId={socket?.id} />
+      ) : (
+        gameState && <GameBoard gameState={gameState} />
+      )}
     </main>
   );
 }
