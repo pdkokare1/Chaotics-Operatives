@@ -1,8 +1,4 @@
 {
-type: file_change
-fileName: apps/web/tsconfig.json
-fullContent:
-{
   "compilerOptions": {
     "baseUrl": ".",
     "target": "es5",
@@ -35,6 +31,4 @@ fullContent:
     "app"
   ],
   "exclude": ["node_modules"]
-}
-
 }
