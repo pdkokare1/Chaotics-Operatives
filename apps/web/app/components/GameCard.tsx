@@ -1,3 +1,4 @@
+// apps/web/app/components/GameCard.tsx
 "use client";
 
 import { Card, CARD_TYPES } from "@operative/shared";
@@ -8,11 +9,11 @@ interface GameCardProps {
   onClick: () => void;
   disabled: boolean;
   isSpymaster: boolean;
+  isSelected?: boolean; // NEW: Prop to track mobile safe taps
 }
 
-export default function GameCard({ card, onClick, disabled, isSpymaster }: GameCardProps) {
+export default function GameCard({ card, onClick, disabled, isSpymaster, isSelected }: GameCardProps) {
   
-  // Logic to determine classes
   const getBackClass = () => {
     switch (card.type) {
       case CARD_TYPES.RED: return styles.backRed;
@@ -39,7 +40,8 @@ export default function GameCard({ card, onClick, disabled, isSpymaster }: GameC
   return (
     <div className={styles.container}>
       <div 
-        className={`${styles.cardInner} ${card.revealed ? styles.isRevealed : ""} ${isInteractive ? styles.isInteractive : ""}`}
+        // Embedded the new isSelected class dynamically here
+        className={`${styles.cardInner} ${card.revealed ? styles.isRevealed : ""} ${isInteractive ? styles.isInteractive : ""} ${isSelected ? styles.isSelected : ""}`}
         onClick={isInteractive ? onClick : undefined}
       >
         {/* FRONT */}
