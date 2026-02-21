@@ -1,3 +1,4 @@
+/* apps/web/app/Home.module.css */
 .container {
   min-height: 100vh;
   display: flex;
@@ -105,4 +106,28 @@
 .joinButton:hover:not(:disabled) {
   background: var(--border);
   color: white;
+}
+
+/* --- NEW: Toast Notification Styling --- */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  border: 1px solid var(--red-primary);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  z-index: 9999;
+  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.2);
+  font-family: monospace;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { top: -50px; opacity: 0; }
+  to { top: 20px; opacity: 1; }
 }
