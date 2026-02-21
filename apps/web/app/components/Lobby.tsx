@@ -1,7 +1,8 @@
 // apps/web/app/components/Lobby.tsx
 "use client";
 
-import { useState } from "react";
+// Added useEffect to the import map
+import { useState, useEffect } from "react";
 import { GameState, Player, TEAMS, ROLES } from "@operative/shared";
 import { useSocket } from "../../context/SocketContext";
 import styles from "./Lobby.module.css";
@@ -14,7 +15,6 @@ interface LobbyProps {
 export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
   const { socket } = useSocket();
 
-  // NEW: State for Host options
   const [selectedCategory, setSelectedCategory] = useState("Standard Mix");
   const [selectedTimer, setSelectedTimer] = useState(0);
 
@@ -25,7 +25,6 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
   const switchTeam = (team: string) => { socket?.emit("change_team", team); };
   const switchRole = (role: string) => { socket?.emit("change_role", role); };
   
-  // NEW: Send options when starting
   const startGame = () => { socket?.emit("start_game", { category: selectedCategory, timer: selectedTimer }); };
 
   const leaveMission = () => {
@@ -76,11 +75,11 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
 
       {isHost ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '300px' }}>
-          {/* NEW: Host Settings */}
+          {/* Applied new spyDropdown CSS class */}
           <select 
             value={selectedCategory} 
             onChange={(e) => setSelectedCategory(e.target.value)}
-            style={{ padding: '0.75rem', background: 'var(--bg-card)', color: 'white', border: '1px solid var(--border)', borderRadius: '4px', outline: 'none' }}
+            className={styles.spyDropdown}
           >
             <option value="Standard Mix">Standard Mix</option>
             <option value="Spy & Action">Spy & Action</option>
@@ -89,10 +88,11 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
             <option value="Characters & Myths">Characters & Myths</option>
           </select>
 
+          {/* Applied new spyDropdown CSS class */}
           <select 
             value={selectedTimer} 
             onChange={(e) => setSelectedTimer(Number(e.target.value))}
-            style={{ padding: '0.75rem', background: 'var(--bg-card)', color: 'white', border: '1px solid var(--border)', borderRadius: '4px', outline: 'none' }}
+            className={styles.spyDropdown}
           >
             <option value={0}>Timer: Off</option>
             <option value={60}>Timer: 60 Seconds</option>
@@ -119,7 +119,22 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
 }
 
 function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: boolean, onRoleSwitch: (r: string) => void }) {
-  const isSpy = player.role === ROLES.SPYMASTER;
+  // NEW: Optimistic UI Logic to fix lag
+  const [localRole, setLocalRole] = useState(player.role);
+  
+  // Keep local state synced with the server if it changes externally
+  useEffect(() => {
+    setLocalRole(player.role);
+  }, [player.role]);
+
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newRole = e.target.value;
+    setLocalRole(newRole as typeof ROLES.OPERATIVE | typeof ROLES.SPYMASTER); // Instant local visual update
+    onRoleSwitch(newRole); // Background network update
+  };
+
+  const isSpy = localRole === ROLES.SPYMASTER;
+
   return (
     <div className={`${styles.playerCard} ${isMe ? styles.isMe : ""}`}>
       <div className={styles.playerInfo}>
@@ -130,7 +145,6 @@ function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: bool
       </div>
 
       {isMe ? (
-        // NEW: Changed Toggle to Dropdown as requested
         // Original Code Commented Out:
         // <div className={styles.roleToggle}>
         //   <button 
@@ -142,10 +156,12 @@ function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: bool
         //     className={`${styles.roleBtn} ${isSpy ? styles.spyActive : ""}`}
         //   >SPY</button>
         // </div>
+        
+        // Updated with Optimistic UI state and new styling
         <select 
-          value={player.role}
-          onChange={(e) => onRoleSwitch(e.target.value)}
-          style={{ background: '#000', color: 'var(--text-muted)', border: '1px solid #404040', borderRadius: '4px', fontSize: '10px', padding: '4px 6px', fontWeight: 'bold' }}
+          value={localRole}
+          onChange={handleRoleChange}
+          className={styles.roleDropdown}
         >
           <option value={ROLES.OPERATIVE}>OPERATIVE</option>
           <option value={ROLES.SPYMASTER}>SPYMASTER</option>
