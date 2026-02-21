@@ -1,7 +1,6 @@
 // apps/web/app/components/Lobby.tsx
 "use client";
 
-// Added useEffect to the import map
 import { useState, useEffect } from "react";
 import { GameState, Player, TEAMS, ROLES } from "@operative/shared";
 import { useSocket } from "../../context/SocketContext";
@@ -18,11 +17,30 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
   const [selectedCategory, setSelectedCategory] = useState("Standard Mix");
   const [selectedTimer, setSelectedTimer] = useState(0);
 
-  const redTeam = gameState.players.filter(p => p.team === TEAMS.RED);
-  const blueTeam = gameState.players.filter(p => p.team === TEAMS.BLUE);
-  const isHost = gameState.players[0]?.id === currentPlayerId;
+  // NEW: Optimistic UI state for the entire player list to handle team switching instantly
+  const [localPlayers, setLocalPlayers] = useState(gameState.players);
 
-  const switchTeam = (team: string) => { socket?.emit("change_team", team); };
+  // Sync local state if the server changes it (e.g. someone else joins or moves)
+  useEffect(() => {
+    setLocalPlayers(gameState.players);
+  }, [gameState.players]);
+
+  // Use localPlayers instead of gameState.players to render the fast-updating columns
+  const redTeam = localPlayers.filter(p => p.team === TEAMS.RED);
+  const blueTeam = localPlayers.filter(p => p.team === TEAMS.BLUE);
+  const isHost = localPlayers[0]?.id === currentPlayerId;
+
+  const switchTeam = (team: string) => { 
+    // Instant visual update (Note: The backend also resets a player to OPERATIVE when they switch teams)
+    if (currentPlayerId) {
+      setLocalPlayers(prev => prev.map(p => 
+        p.id === currentPlayerId ? { ...p, team: team as typeof TEAMS.RED | typeof TEAMS.BLUE, role: ROLES.OPERATIVE } : p
+      ));
+    }
+    // Background server sync
+    socket?.emit("change_team", team); 
+  };
+  
   const switchRole = (role: string) => { socket?.emit("change_role", role); };
   
   const startGame = () => { socket?.emit("start_game", { category: selectedCategory, timer: selectedTimer }); };
@@ -75,7 +93,6 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
 
       {isHost ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '300px' }}>
-          {/* Applied new spyDropdown CSS class */}
           <select 
             value={selectedCategory} 
             onChange={(e) => setSelectedCategory(e.target.value)}
@@ -88,7 +105,6 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
             <option value="Characters & Myths">Characters & Myths</option>
           </select>
 
-          {/* Applied new spyDropdown CSS class */}
           <select 
             value={selectedTimer} 
             onChange={(e) => setSelectedTimer(Number(e.target.value))}
@@ -119,18 +135,17 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
 }
 
 function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: boolean, onRoleSwitch: (r: string) => void }) {
-  // NEW: Optimistic UI Logic to fix lag
   const [localRole, setLocalRole] = useState(player.role);
   
-  // Keep local state synced with the server if it changes externally
+  // Sync local state if the server changes it
   useEffect(() => {
     setLocalRole(player.role);
   }, [player.role]);
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newRole = e.target.value;
-    setLocalRole(newRole as typeof ROLES.OPERATIVE | typeof ROLES.SPYMASTER); // Instant local visual update
-    onRoleSwitch(newRole); // Background network update
+    setLocalRole(newRole as typeof ROLES.OPERATIVE | typeof ROLES.SPYMASTER); // Instant visual update
+    onRoleSwitch(newRole); // Background server sync
   };
 
   const isSpy = localRole === ROLES.SPYMASTER;
@@ -145,7 +160,6 @@ function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: bool
       </div>
 
       {isMe ? (
-        // Original Code Commented Out:
         // <div className={styles.roleToggle}>
         //   <button 
         //     onClick={() => onRoleSwitch(ROLES.OPERATIVE)}
@@ -156,8 +170,6 @@ function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: bool
         //     className={`${styles.roleBtn} ${isSpy ? styles.spyActive : ""}`}
         //   >SPY</button>
         // </div>
-        
-        // Updated with Optimistic UI state and new styling
         <select 
           value={localRole}
           onChange={handleRoleChange}
