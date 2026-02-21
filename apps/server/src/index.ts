@@ -23,8 +23,18 @@ const io = new Server(httpServer, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// Track which socket is in which room
 const socketToRoom = new Map<string, string>(); 
+
+// NEW: Queue system to prevent MongoDB race conditions when events happen rapidly
+const roomLocks = new Map<string, Promise<void>>();
+const withLock = async (code: string, fn: () => Promise<void>) => {
+  const currentLock = roomLocks.get(code) || Promise.resolve();
+  const nextLock = currentLock.then(async () => {
+    try { await fn(); } catch (e) { console.error(e); }
+  });
+  roomLocks.set(code, nextLock);
+  return nextLock;
+};
 
 // Helper: Save game to DB and broadcast
 const saveAndBroadcast = async (roomCode: string, gameState: any) => {
@@ -45,7 +55,7 @@ const getGame = async (roomCode: string) => {
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
-  // --- Auto Reconnect (Phase 1) ---
+  // --- Auto Reconnect ---
   socket.on("reconnect_user", async (deviceId) => {
     if (!deviceId) return;
     const gameDoc = await GameModel.findOne({ "state.players.deviceId": deviceId });
@@ -65,19 +75,21 @@ io.on("connection", (socket) => {
     }
   });
 
-  // --- Leave Game (Phase 1) ---
+  // --- Leave Game ---
   socket.on("leave_game", async () => {
     const code = socketToRoom.get(socket.id);
     if (code) {
-      let gameState = await getGame(code);
-      if (gameState) {
-        gameState = removePlayer(gameState, socket.id);
-        if (gameState.players.length === 0) {
-          await GameModel.deleteOne({ roomCode: code });
-        } else {
-          await saveAndBroadcast(code, gameState);
+      withLock(code, async () => {
+        let gameState = await getGame(code);
+        if (gameState) {
+          gameState = removePlayer(gameState, socket.id);
+          if (gameState.players.length === 0) {
+            await GameModel.deleteOne({ roomCode: code });
+          } else {
+            await saveAndBroadcast(code, gameState);
+          }
         }
-      }
+      });
       socket.leave(code);
       socketToRoom.delete(socket.id);
       console.log(`🚪 User ${socket.id} intentionally left game ${code}`);
@@ -104,128 +116,143 @@ io.on("connection", (socket) => {
   // --- Join Game ---
   socket.on("join_game", async ({ roomCode, playerName, deviceId }) => {
     const code = roomCode.trim().toUpperCase();
-    let gameState = await getGame(code);
+    withLock(code, async () => {
+      let gameState = await getGame(code);
+      if (gameState) {
+        const name = playerName || `Agent ${socket.id.substring(0, 3)}`;
+        const existingPlayer = gameState.players.find((p: any) => p.deviceId && p.deviceId === deviceId);
+        
+        if (existingPlayer) {
+          gameState.players = gameState.players.map((p: any) => 
+            p.deviceId === deviceId ? { ...p, id: socket.id, name } : p
+          );
+          console.log(`♻️ ${name} reconnected to ${code}`);
+        } else {
+          gameState = addPlayer(gameState, socket.id, name, deviceId);
+          console.log(`✅ ${name} joined ${code}`);
+        }
 
-    if (gameState) {
-      const name = playerName || `Agent ${socket.id.substring(0, 3)}`;
-      const existingPlayer = gameState.players.find((p: any) => p.deviceId && p.deviceId === deviceId);
-      
-      if (existingPlayer) {
-        gameState.players = gameState.players.map((p: any) => 
-          p.deviceId === deviceId ? { ...p, id: socket.id, name } : p
-        );
-        console.log(`♻️ ${name} reconnected to ${code}`);
+        socketToRoom.set(socket.id, code);
+        socket.join(code);
+        
+        await saveAndBroadcast(code, gameState);
       } else {
-        gameState = addPlayer(gameState, socket.id, name, deviceId);
-        console.log(`✅ ${name} joined ${code}`);
+        socket.emit("error", "Room not found");
       }
-
-      socketToRoom.set(socket.id, code);
-      socket.join(code);
-      
-      await saveAndBroadcast(code, gameState);
-    } else {
-      socket.emit("error", "Room not found");
-    }
+    });
   });
 
   // --- Lobby Actions ---
-  socket.on("change_team", async (team) => {
+  socket.on("change_team", (team) => {
     const code = socketToRoom.get(socket.id);
     if (code) {
-      let gameState = await getGame(code);
-      if (gameState) {
-        gameState = updatePlayer(gameState, socket.id, { team, role: "operative" });
-        await saveAndBroadcast(code, gameState);
-      }
+      withLock(code, async () => {
+        let gameState = await getGame(code);
+        if (gameState) {
+          gameState = updatePlayer(gameState, socket.id, { team, role: "operative" });
+          await saveAndBroadcast(code, gameState);
+        }
+      });
     }
   });
 
-  socket.on("change_role", async (role) => {
+  socket.on("change_role", (role) => {
     const code = socketToRoom.get(socket.id);
     if (code) {
-      let gameState = await getGame(code);
-      if (gameState) {
-        gameState = updatePlayer(gameState, socket.id, { role });
-        await saveAndBroadcast(code, gameState);
-      }
+      withLock(code, async () => {
+        let gameState = await getGame(code);
+        if (gameState) {
+          gameState = updatePlayer(gameState, socket.id, { role });
+          await saveAndBroadcast(code, gameState);
+        }
+      });
     }
   });
 
-  // --- Start Game (Phase 2) ---
-  socket.on("start_game", async (options: { category: string, timer: number }) => {
+  socket.on("start_game", (options: { category: string, timer: number }) => {
     const code = socketToRoom.get(socket.id);
     if (code) {
-      let gameState = await getGame(code);
-      if (gameState) {
-        gameState = startGame(gameState, options);
-        await saveAndBroadcast(code, gameState);
-      }
+      withLock(code, async () => {
+        let gameState = await getGame(code);
+        if (gameState) {
+          gameState = startGame(gameState, options);
+          await saveAndBroadcast(code, gameState);
+        }
+      });
     }
   });
 
   // --- Game Actions ---
-  socket.on("reveal_card", async ({ roomCode, cardId }) => {
+  socket.on("reveal_card", ({ roomCode, cardId }) => {
     const code = roomCode.trim().toUpperCase();
-    let gameState = await getGame(code);
-    if (gameState) {
-      gameState = makeMove(gameState, cardId);
-      await saveAndBroadcast(code, gameState);
-    }
-  });
-
-  socket.on("give_clue", async ({ word, number }) => {
-    const code = socketToRoom.get(socket.id);
-    if (code) {
+    withLock(code, async () => {
       let gameState = await getGame(code);
       if (gameState) {
-        gameState = giveClue(gameState, word, number);
+        gameState = makeMove(gameState, cardId);
         await saveAndBroadcast(code, gameState);
       }
-    }
+    });
   });
 
-  socket.on("end_turn", async () => {
+  socket.on("give_clue", ({ word, number }) => {
     const code = socketToRoom.get(socket.id);
     if (code) {
-      let gameState = await getGame(code);
-      if (gameState) {
-        // TypeScript Fix applied here: (p: any)
-        const caller = gameState.players.find((p: any) => p.id === socket.id);
-        if (caller && caller.team === gameState.turn) {
-          gameState = endTurn(gameState);
+      withLock(code, async () => {
+        let gameState = await getGame(code);
+        if (gameState) {
+          gameState = giveClue(gameState, word, number);
           await saveAndBroadcast(code, gameState);
         }
-      }
+      });
     }
   });
 
-  socket.on("restart_game", async (roomCode) => {
-    const code = roomCode.trim().toUpperCase();
-    let oldState = await getGame(code);
-    if (oldState) {
-      let newState = generateGame(code);
-      newState.players = oldState.players;
-      newState.phase = "lobby"; 
-      newState.logs = ["Mission Reset. Prepare for deployment."];
-      await saveAndBroadcast(code, newState);
+  socket.on("end_turn", () => {
+    const code = socketToRoom.get(socket.id);
+    if (code) {
+      withLock(code, async () => {
+        let gameState = await getGame(code);
+        if (gameState) {
+          const caller = gameState.players.find((p: any) => p.id === socket.id);
+          if (caller && caller.team === gameState.turn) {
+            gameState = endTurn(gameState);
+            await saveAndBroadcast(code, gameState);
+          }
+        }
+      });
     }
+  });
+
+  socket.on("restart_game", (roomCode) => {
+    const code = roomCode.trim().toUpperCase();
+    withLock(code, async () => {
+      let oldState = await getGame(code);
+      if (oldState) {
+        let newState = generateGame(code);
+        newState.players = oldState.players;
+        newState.phase = "lobby"; 
+        newState.logs = ["Mission Reset. Prepare for deployment."];
+        await saveAndBroadcast(code, newState);
+      }
+    });
   });
 
   // --- Disconnect ---
   socket.on("disconnect", async () => {
     const code = socketToRoom.get(socket.id);
     if (code) {
-      let gameState = await getGame(code);
-      if (gameState) {
-        // Commented out to preserve Phase 1 reconnect functionality
-        // gameState = removePlayer(gameState, socket.id);
-        if (gameState.players.length === 0) {
-          await GameModel.deleteOne({ roomCode: code });
-        } else {
-          await saveAndBroadcast(code, gameState);
+      withLock(code, async () => {
+        let gameState = await getGame(code);
+        if (gameState) {
+          // Commented out to preserve Phase 1 reconnect functionality
+          // gameState = removePlayer(gameState, socket.id);
+          if (gameState.players.length === 0) {
+            await GameModel.deleteOne({ roomCode: code });
+          } else {
+            await saveAndBroadcast(code, gameState);
+          }
         }
-      }
+      });
     }
     socketToRoom.delete(socket.id);
   });
