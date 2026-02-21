@@ -17,8 +17,10 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const [clueNum, setClueNum] = useState("1");
   const [copied, setCopied] = useState(false);
 
-  // NEW: Timer State
   const [timeLeft, setTimeLeft] = useState(gameState.timerDuration);
+  
+  // NEW: State to track "Mobile Safe Taps" (require double-click to reveal)
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const myPlayer = gameState.players.find(p => p.id === socket?.id);
   const isMyTurn = gameState.turn === myPlayer?.team;
@@ -27,12 +29,11 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const [viewAsSpymaster, setViewAsSpymaster] = useState(false);
   const showSpymasterView = isSpymaster || viewAsSpymaster;
 
-  // NEW: Reset Timer when turn changes or a clue is given
   useEffect(() => {
     setTimeLeft(gameState.timerDuration);
+    setSelectedCardId(null); // Clear active selections if the turn changes
   }, [gameState.turn, gameState.currentClue, gameState.timerDuration]);
 
-  // NEW: Countdown Loop
   useEffect(() => {
     if (gameState.timerDuration === 0 || gameState.phase !== "playing") return;
     
@@ -47,7 +48,14 @@ export default function GameBoard({ gameState }: GameBoardProps) {
 
   const handleCardClick = (cardId: string) => {
     if (!socket || isSpymaster || !isMyTurn || !gameState.currentClue) return;
-    socket.emit("reveal_card", { roomCode: gameState.roomCode, cardId });
+    
+    // NEW: Safe Tap Logic - First tap selects, second tap confirms and fires to server
+    if (selectedCardId === cardId) {
+      socket.emit("reveal_card", { roomCode: gameState.roomCode, cardId });
+      setSelectedCardId(null); 
+    } else {
+      setSelectedCardId(cardId); 
+    }
   };
 
   const submitClue = (e: React.FormEvent) => {
@@ -73,15 +81,37 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     }
   };
 
-  // Helper to format timer visually
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  // NEW: Mission Intel Feed Parser (Turns raw server text into styled badges)
+  const renderLogEntry = (log: string) => {
+    if (log.includes("FATAL ERROR")) {
+      return <><span className={styles.tagFatal}>FATAL</span> <span style={{color: 'var(--red-primary)'}}>{log.replace("FATAL ERROR: ", "")}</span></>;
+    }
+    if (log.includes("civilian")) {
+      return <><span className={styles.tagWarn}>INTEL</span> <span style={{color: 'var(--yellow-accent)'}}>{log}</span></>;
+    }
+    if (log.startsWith("RED") || log.includes("Red Team")) {
+      return <><span className={styles.tagRed}>RED</span> {log.replace(/^RED\s/, "")}</>;
+    }
+    if (log.startsWith("BLUE") || log.includes("Blue Team")) {
+      return <><span className={styles.tagBlue}>BLUE</span> {log.replace(/^BLUE\s/, "")}</>;
+    }
+    if (log.includes("MISSION")) {
+      return <><span className={styles.tagSystem}>SYSTEM</span> {log}</>;
+    }
+    return <><span className={styles.tagSystem}>INFO</span> {log}</>;
+  };
+
+  // Dynamically apply background glow classes based on current turn
+  const containerClass = `${styles.container} ${gameState.phase === 'playing' ? (gameState.turn === 'red' ? styles.glowRed : styles.glowBlue) : ''}`;
+
   return (
-    <div className={styles.container}>
+    <div className={containerClass}>
       
       {/* --- VICTORY OVERLAY --- */}
       {gameState.phase === "game_over" && (
@@ -160,7 +190,6 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           <div style={{fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 4}}>{copied ? "COPIED!" : "SECURE CHANNEL"}</div>
           <div className={styles.roomCodeBox}>{gameState.roomCode}</div>
           
-          {/* NEW: Visual Timer display attached neatly under the room code */}
           {gameState.timerDuration > 0 && gameState.phase === "playing" && (
             <div style={{ fontSize: '0.8rem', marginTop: 4, color: timeLeft <= 10 ? 'var(--red-primary)' : 'var(--text-muted)', fontWeight: timeLeft <= 10 ? 'bold' : 'normal' }}>
               TIME: {formatTime(timeLeft)}
@@ -182,6 +211,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             onClick={() => handleCardClick(card.id)}
             disabled={gameState.phase === "game_over" || (isMyTurn && !isSpymaster && !gameState.currentClue)}
             isSpymaster={showSpymasterView}
+            isSelected={selectedCardId === card.id} 
           />
         ))}
       </div>
@@ -190,7 +220,9 @@ export default function GameBoard({ gameState }: GameBoardProps) {
       <div className={styles.footer}>
         <div className={styles.logs}>
           {gameState.logs.slice().reverse().map((log, i) => (
-            <div key={i} className={styles.logEntry}>{">"} {log}</div>
+            <div key={i} className={styles.logEntry}>
+               {renderLogEntry(log)}
+            </div>
           ))}
         </div>
 
