@@ -1,3 +1,4 @@
+// apps/web/app/components/Lobby.tsx
 "use client";
 
 import { GameState, Player, TEAMS, ROLES } from "@operative/shared";
@@ -19,6 +20,15 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
   const switchTeam = (team: string) => { socket?.emit("change_team", team); };
   const switchRole = (role: string) => { socket?.emit("change_role", role); };
   const startGame = () => { socket?.emit("start_game"); };
+
+  // NEW: Leave Mission logic
+  const leaveMission = () => {
+    if (confirm("Are you sure you want to leave this mission?")) {
+      socket?.emit("leave_game");
+      // Reloads the page to clear local state. Since the server scrubbed the DB, the auto-login will stay on the welcome screen.
+      window.location.reload(); 
+    }
+  };
 
   return (
     <div className={styles.container}>
@@ -66,6 +76,14 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
           WAITING FOR HOST TO START...
         </div>
       )}
+
+      {/* NEW: Leave Mission Button */}
+      <button 
+        onClick={leaveMission} 
+        style={{marginTop: '2rem', padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--text-muted)', color: 'var(--text-muted)', borderRadius: '4px', fontSize: '0.8rem', letterSpacing: '0.1em'}}
+      >
+        LEAVE MISSION
+      </button>
     </div>
   );
 }
