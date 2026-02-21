@@ -29,7 +29,7 @@ export interface Player {
   name: string;
   team: Team;
   role: Role;
-  deviceId?: string; // New: Tracks the player's browser for reconnection
+  deviceId?: string; // Tracks the player's browser for reconnection
 }
 
 export interface Card {
@@ -39,7 +39,7 @@ export interface Card {
   revealed: boolean;
 }
 
-// New: Structure for a clue
+// Structure for a clue
 export interface Clue {
   word: string;
   number: number;
@@ -54,7 +54,8 @@ export interface GameState {
   scores: { red: number; blue: number };
   winner: Team | null;
   logs: string[];
-  currentClue: Clue | null; // New: Tracks the active clue
+  currentClue: Clue | null; // Tracks the active clue
+  timerDuration: number; // NEW: 0 means off, otherwise represents seconds per turn
 }
 
 // --- Validation Schemas ---
