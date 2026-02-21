@@ -17,31 +17,35 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
   const [selectedCategory, setSelectedCategory] = useState("Standard Mix");
   const [selectedTimer, setSelectedTimer] = useState(0);
 
-  // NEW: Optimistic UI state for the entire player list to handle team switching instantly
   const [localPlayers, setLocalPlayers] = useState(gameState.players);
 
-  // Sync local state if the server changes it (e.g. someone else joins or moves)
+  // Sync local state if the server changes it
   useEffect(() => {
     setLocalPlayers(gameState.players);
   }, [gameState.players]);
 
-  // Use localPlayers instead of gameState.players to render the fast-updating columns
   const redTeam = localPlayers.filter(p => p.team === TEAMS.RED);
   const blueTeam = localPlayers.filter(p => p.team === TEAMS.BLUE);
   const isHost = localPlayers[0]?.id === currentPlayerId;
 
   const switchTeam = (team: string) => { 
-    // Instant visual update (Note: The backend also resets a player to OPERATIVE when they switch teams)
     if (currentPlayerId) {
       setLocalPlayers(prev => prev.map(p => 
         p.id === currentPlayerId ? { ...p, team: team as typeof TEAMS.RED | typeof TEAMS.BLUE, role: ROLES.OPERATIVE } : p
       ));
     }
-    // Background server sync
     socket?.emit("change_team", team); 
   };
   
-  const switchRole = (role: string) => { socket?.emit("change_role", role); };
+  const switchRole = (role: string) => { 
+    // NEW: Fully optimistic UI for role switching to ensure the UI never lags behind the server
+    if (currentPlayerId) {
+      setLocalPlayers(prev => prev.map(p => 
+        p.id === currentPlayerId ? { ...p, role: role as typeof ROLES.OPERATIVE | typeof ROLES.SPYMASTER } : p
+      ));
+    }
+    socket?.emit("change_role", role); 
+  };
   
   const startGame = () => { socket?.emit("start_game", { category: selectedCategory, timer: selectedTimer }); };
 
@@ -137,15 +141,14 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
 function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: boolean, onRoleSwitch: (r: string) => void }) {
   const [localRole, setLocalRole] = useState(player.role);
   
-  // Sync local state if the server changes it
   useEffect(() => {
     setLocalRole(player.role);
   }, [player.role]);
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newRole = e.target.value;
-    setLocalRole(newRole as typeof ROLES.OPERATIVE | typeof ROLES.SPYMASTER); // Instant visual update
-    onRoleSwitch(newRole); // Background server sync
+    setLocalRole(newRole as typeof ROLES.OPERATIVE | typeof ROLES.SPYMASTER); 
+    onRoleSwitch(newRole); 
   };
 
   const isSpy = localRole === ROLES.SPYMASTER;
