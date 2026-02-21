@@ -1,3 +1,4 @@
+/* apps/web/app/components/GameBoard.module.css */
 .container {
   width: 100%;
   min-height: 100vh;
@@ -7,7 +8,12 @@
   flex-direction: column;
   align-items: center;
   background-color: var(--bg-app);
+  transition: box-shadow 1s ease-in-out; /* Smoothly animates the glow */
 }
+
+/* --- NEW: Dynamic Ambient Glows --- */
+.glowRed { box-shadow: inset 0 0 200px rgba(220, 38, 38, 0.08); }
+.glowBlue { box-shadow: inset 0 0 200px rgba(37, 99, 235, 0.08); }
 
 .overlay {
   position: fixed;
@@ -190,7 +196,21 @@
   font-size: 0.75rem;
   color: var(--text-muted);
 }
-.logEntry { margin-bottom: 0.25rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.logEntry { 
+  margin-bottom: 0.35rem; 
+  border-bottom: 1px solid rgba(255,255,255,0.05); 
+  padding-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* --- NEW: Mission Intel Tags --- */
+.tagRed { color: var(--red-primary); border: 1px solid var(--red-border); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
+.tagBlue { color: var(--blue-primary); border: 1px solid var(--blue-border); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
+.tagWarn { color: var(--yellow-accent); border: 1px solid var(--yellow-accent); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
+.tagFatal { color: white; background: var(--red-primary); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; animation: pulse 1s infinite; }
+.tagSystem { color: #525252; border: 1px solid #404040; padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
 
 .controls {
   display: flex;
