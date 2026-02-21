@@ -48,7 +48,7 @@ io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
   // --- Auto Reconnect ---
-  // NEW: Searches DB to see if this user is already in a game
+  // Searches DB to see if this user is already in a game
   socket.on("reconnect_user", async (deviceId) => {
     if (!deviceId) return;
     
@@ -68,6 +68,27 @@ io.on("connection", (socket) => {
       
       await saveAndBroadcast(roomCode, gameState);
       console.log(`⚡ Auto-reconnected device ${deviceId} to ${roomCode}`);
+    }
+  });
+
+  // --- Leave Game (Intentional Disconnect) ---
+  socket.on("leave_game", async () => {
+    const code = socketToRoom.get(socket.id);
+    if (code) {
+      let gameState = await getGame(code);
+      if (gameState) {
+        // Actively remove the player from the database to sever the deviceId connection
+        gameState = removePlayer(gameState, socket.id);
+        
+        if (gameState.players.length === 0) {
+          await GameModel.deleteOne({ roomCode: code });
+        } else {
+          await saveAndBroadcast(code, gameState);
+        }
+      }
+      socket.leave(code);
+      socketToRoom.delete(socket.id);
+      console.log(`🚪 User ${socket.id} intentionally left game ${code}`);
     }
   });
 
