@@ -19,7 +19,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
 
   const [timeLeft, setTimeLeft] = useState(gameState.timerDuration);
   
-  // NEW: State to track "Mobile Safe Taps" (require double-click to reveal)
+  // State to track "Mobile Safe Taps" (require double-click to reveal)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const myPlayer = gameState.players.find(p => p.id === socket?.id);
@@ -29,27 +29,35 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const [viewAsSpymaster, setViewAsSpymaster] = useState(false);
   const showSpymasterView = isSpymaster || viewAsSpymaster;
 
+  // Clear active selections if the turn changes
   useEffect(() => {
-    setTimeLeft(gameState.timerDuration);
-    setSelectedCardId(null); // Clear active selections if the turn changes
-  }, [gameState.turn, gameState.currentClue, gameState.timerDuration]);
+    setSelectedCardId(null); 
+  }, [gameState.turn]);
 
+  // NEW: Server-Driven Timer Sync
   useEffect(() => {
-    if (gameState.timerDuration === 0 || gameState.phase !== "playing") return;
-    
-    if (timeLeft <= 0) {
-      if (isMyTurn) socket?.emit("end_turn");
+    if (gameState.timerDuration === 0 || gameState.phase !== "playing" || !gameState.turnEndsAt) {
+      setTimeLeft(gameState.timerDuration); // Reset to base or 0
       return;
     }
 
-    const timer = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [timeLeft, gameState.timerDuration, gameState.phase, isMyTurn, socket]);
+    const updateTimer = () => {
+      if (!gameState.turnEndsAt) return;
+      // Compare server absolute time against current local time to prevent drift
+      const remaining = Math.max(0, Math.ceil((gameState.turnEndsAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+    };
+
+    updateTimer(); // Initial sync
+    const timer = setInterval(updateTimer, 500); // Check every 500ms for smooth UI updates
+
+    return () => clearInterval(timer);
+  }, [gameState.turnEndsAt, gameState.timerDuration, gameState.phase]);
 
   const handleCardClick = (cardId: string) => {
     if (!socket || isSpymaster || !isMyTurn || !gameState.currentClue) return;
     
-    // NEW: Safe Tap Logic - First tap selects, second tap confirms and fires to server
+    // Safe Tap Logic - First tap selects, second tap confirms and fires to server
     if (selectedCardId === cardId) {
       socket.emit("reveal_card", { roomCode: gameState.roomCode, cardId });
       setSelectedCardId(null); 
@@ -87,7 +95,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // NEW: Mission Intel Feed Parser (Turns raw server text into styled badges)
+  // Mission Intel Feed Parser
   const renderLogEntry = (log: string) => {
     if (log.includes("FATAL ERROR")) {
       return <><span className={styles.tagFatal}>FATAL</span> <span style={{color: 'var(--red-primary)'}}>{log.replace("FATAL ERROR: ", "")}</span></>;
@@ -101,13 +109,12 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     if (log.startsWith("BLUE") || log.includes("Blue Team")) {
       return <><span className={styles.tagBlue}>BLUE</span> {log.replace(/^BLUE\s/, "")}</>;
     }
-    if (log.includes("MISSION")) {
-      return <><span className={styles.tagSystem}>SYSTEM</span> {log}</>;
+    if (log.includes("MISSION") || log.includes("SYSTEM")) {
+      return <><span className={styles.tagSystem}>SYSTEM</span> {log.replace("SYSTEM OVERRIDE: ", "")}</>;
     }
     return <><span className={styles.tagSystem}>INFO</span> {log}</>;
   };
 
-  // Dynamically apply background glow classes based on current turn
   const containerClass = `${styles.container} ${gameState.phase === 'playing' ? (gameState.turn === 'red' ? styles.glowRed : styles.glowBlue) : ''}`;
 
   return (
