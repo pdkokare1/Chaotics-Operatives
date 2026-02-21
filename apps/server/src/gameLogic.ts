@@ -31,7 +31,8 @@ export function generateGame(roomCode: string): GameState {
     winner: null,
     logs: ["Waiting for players..."],
     currentClue: null,
-    timerDuration: 0 // Default to off
+    timerDuration: 0, // Default to off
+    turnEndsAt: null // NEW: Init as null
   };
 }
 
@@ -66,10 +67,14 @@ export function startGame(gameState: GameState, options?: { category: string, ti
 
   let newBoard = gameState.board;
   let selectedTimer = 0;
+  let newTurnEndsAt = null;
 
   // Apply new settings if provided
   if (options) {
     selectedTimer = options.timer;
+    if (selectedTimer > 0) {
+      newTurnEndsAt = Date.now() + (selectedTimer * 1000);
+    }
     
     // Regenerate board words with selected category
     if (options.category && CATEGORIZED_WORDS[options.category]) {
@@ -90,6 +95,7 @@ export function startGame(gameState: GameState, options?: { category: string, ti
     phase: "playing",
     board: newBoard,
     timerDuration: selectedTimer,
+    turnEndsAt: newTurnEndsAt,
     logs: [...gameState.logs, "Mission Started. Red Team, awaiting orders."]
   };
 }
@@ -115,6 +121,7 @@ export function endTurn(gameState: GameState): GameState {
     ...gameState,
     turn: opponent,
     currentClue: null, 
+    turnEndsAt: gameState.timerDuration > 0 ? Date.now() + (gameState.timerDuration * 1000) : null,
     logs: [...gameState.logs, `${gameState.turn.toUpperCase()} ended their turn.`]
   };
 }
@@ -139,11 +146,13 @@ export function makeMove(gameState: GameState, cardId: string): GameState {
   if (card.type === CARD_TYPES.ASSASSIN) {
     newState.phase = "game_over";
     newState.winner = opponentTeam;
+    newState.turnEndsAt = null;
     newState.logs.push(`FATAL ERROR: ${currentTeam.toUpperCase()} Hit the Assassin! ${opponentTeam.toUpperCase()} Wins.`);
   } 
   else if (card.type === CARD_TYPES.NEUTRAL) {
     newState.turn = opponentTeam;
     newState.currentClue = null; 
+    newState.turnEndsAt = newState.timerDuration > 0 ? Date.now() + (newState.timerDuration * 1000) : null;
     newState.logs.push(`${currentTeam.toUpperCase()} hit a civilian. Turn over.`);
   } 
   else if (card.type === currentTeam) {
@@ -153,6 +162,7 @@ export function makeMove(gameState: GameState, cardId: string): GameState {
     if (newState.scores[currentTeam] === 0) {
       newState.phase = "game_over";
       newState.winner = currentTeam;
+      newState.turnEndsAt = null;
       newState.logs.push(`MISSION ACCOMPLISHED: ${currentTeam.toUpperCase()} Wins!`);
     }
   } 
@@ -160,11 +170,13 @@ export function makeMove(gameState: GameState, cardId: string): GameState {
     newState.scores[opponentTeam] -= 1;
     newState.turn = opponentTeam;
     newState.currentClue = null; 
+    newState.turnEndsAt = newState.timerDuration > 0 ? Date.now() + (newState.timerDuration * 1000) : null;
     newState.logs.push(`${currentTeam.toUpperCase()} found an Enemy Spy! Turn over.`);
 
     if (newState.scores[opponentTeam] === 0) {
       newState.phase = "game_over";
       newState.winner = opponentTeam;
+      newState.turnEndsAt = null;
       newState.logs.push(`MISSION FAILED: ${opponentTeam.toUpperCase()} Wins!`);
     }
   }
