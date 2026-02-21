@@ -2,22 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// import dynamic from "next/dynamic";
 import { useSocket } from "../context/SocketContext";
 import { GameState } from "@operative/shared";
 import styles from "./Home.module.css"; 
-
-// --- Dynamic Imports (Client Side Only) ---
-// This forces the CSS to load on the client, fixing the styling issue on Vercel/Production
-// const Lobby = dynamic(() => import("./components/Lobby"), { 
-//   ssr: false,
-//   loading: () => <div className="animate-pulse" style={{padding: '2rem', color: '#a3a3a3'}}>LOADING HQ...</div>
-// });
-
-// const GameBoard = dynamic(() => import("./components/GameBoard"), { 
-//   ssr: false,
-//   loading: () => <div className="animate-pulse" style={{padding: '2rem', color: '#a3a3a3'}}>LOADING MISSION...</div>
-// });
 
 import Lobby from "./components/Lobby";
 import GameBoard from "./components/GameBoard";
@@ -31,9 +18,17 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState("");
   const [view, setView] = useState<"welcome" | "game">("welcome");
   const [deviceId, setDeviceId] = useState("");
+  
+  // NEW: Custom Toast State
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Helper to show custom toast instead of browser alert
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000); // Auto dismiss after 3 seconds
+  };
 
   useEffect(() => {
-    // Reconnection Logic: Get or create a permanent Device ID for this browser
     let storedId = localStorage.getItem("operative_device_id");
     if (!storedId) {
       storedId = "dev_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -42,10 +37,8 @@ export default function Home() {
     setDeviceId(storedId);
   }, []);
 
-  // NEW: Automatic Check-In
   useEffect(() => {
     if (!socket || !deviceId) return;
-    // As soon as we have a socket and a device ID, ask the server if we are in a game
     socket.emit("reconnect_user", deviceId);
   }, [socket, deviceId]);
 
@@ -55,11 +48,11 @@ export default function Home() {
     socket.on("game_updated", (newGame: GameState) => {
       setGameState(newGame);
       setLoading(false);
-      setView("game"); // This automatically skips the welcome screen if the server sends a game
+      setView("game"); 
     });
 
     socket.on("error", (msg: string) => {
-      alert(msg);
+      showToast(msg); // Upgraded from alert(msg)
       setLoading(false);
     });
 
@@ -70,16 +63,14 @@ export default function Home() {
   }, [socket]);
 
   const handleCreateGame = () => {
-    if (!socket || !playerName) return alert("Please enter your name");
+    if (!socket || !playerName) return showToast("PLEASE ENTER CODENAME"); // Upgraded from alert
     setLoading(true);
-    // Updated to send deviceId object
     socket.emit("create_game", { hostName: playerName, deviceId });
   };
 
   const handleJoinGame = () => {
-    if (!socket || !joinCode || !playerName) return alert("Please enter name and code");
+    if (!socket || !joinCode || !playerName) return showToast("PLEASE ENTER NAME AND CODE"); // Upgraded from alert
     setLoading(true);
-    // Updated to send deviceId
     socket.emit("join_game", { roomCode: joinCode, playerName, deviceId });
   }
 
@@ -96,6 +87,9 @@ export default function Home() {
   if (view === "welcome") {
     return (
       <main className={styles.container}>
+        {/* Render Toast notification if exists */}
+        {toast && <div className={styles.toast}>{toast}</div>}
+
         <h1 className={styles.title}>OPERATIVE</h1>
         
         <div className={styles.card}>
