@@ -1,3 +1,4 @@
+// apps/web/app/components/GameBoard.tsx
 "use client";
 
 import { useState } from "react";
@@ -42,6 +43,14 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     navigator.clipboard.writeText(gameState.roomCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // NEW: Leave Mission logic
+  const leaveMission = () => {
+    if (confirm("Are you sure you want to abort the mission?")) {
+      if (socket) socket.emit("leave_game");
+      window.location.reload();
+    }
   };
 
   return (
@@ -162,6 +171,10 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                RESET
              </button>
            )}
+           {/* NEW: Leave Mission Button appended here */}
+           <button onClick={leaveMission} className={styles.controlBtn}>
+             ABORT
+           </button>
         </div>
       </div>
     </div>
