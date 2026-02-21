@@ -45,7 +45,7 @@ const getGame = async (roomCode: string) => {
 io.on("connection", (socket) => {
   console.log(`User Connected: ${socket.id}`);
 
-  // --- Auto Reconnect ---
+  // --- Auto Reconnect (Phase 1) ---
   socket.on("reconnect_user", async (deviceId) => {
     if (!deviceId) return;
     const gameDoc = await GameModel.findOne({ "state.players.deviceId": deviceId });
@@ -65,7 +65,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // --- Leave Game ---
+  // --- Leave Game (Phase 1) ---
   socket.on("leave_game", async () => {
     const code = socketToRoom.get(socket.id);
     if (code) {
@@ -152,7 +152,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // NEW: Accept options payload
+  // --- Start Game (Phase 2) ---
   socket.on("start_game", async (options: { category: string, timer: number }) => {
     const code = socketToRoom.get(socket.id);
     if (code) {
@@ -190,8 +190,8 @@ io.on("connection", (socket) => {
     if (code) {
       let gameState = await getGame(code);
       if (gameState) {
-        // NEW: Security check to prevent double skips from multiple local timers ending
-        const caller = gameState.players.find(p => p.id === socket.id);
+        // TypeScript Fix applied here: (p: any)
+        const caller = gameState.players.find((p: any) => p.id === socket.id);
         if (caller && caller.team === gameState.turn) {
           gameState = endTurn(gameState);
           await saveAndBroadcast(code, gameState);
@@ -218,7 +218,7 @@ io.on("connection", (socket) => {
     if (code) {
       let gameState = await getGame(code);
       if (gameState) {
-        // Commented out per user preference:
+        // Commented out to preserve Phase 1 reconnect functionality
         // gameState = removePlayer(gameState, socket.id);
         if (gameState.players.length === 0) {
           await GameModel.deleteOne({ roomCode: code });
