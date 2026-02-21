@@ -55,7 +55,8 @@ export interface GameState {
   winner: Team | null;
   logs: string[];
   currentClue: Clue | null; // Tracks the active clue
-  timerDuration: number; // NEW: 0 means off, otherwise represents seconds per turn
+  timerDuration: number; // 0 means off, otherwise represents seconds per turn
+  turnEndsAt: number | null; // NEW: Absolute timestamp for Server-Driven Time
 }
 
 // --- Validation Schemas ---
