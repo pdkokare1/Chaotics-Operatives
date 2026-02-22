@@ -3,13 +3,28 @@
 .container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh; /* FIX: Allows the page to scroll down to the footer */
+  min-height: 100vh; 
   max-width: 1200px;
   margin: 0 auto;
   padding: 1rem;
-  padding-bottom: 3rem; /* Extra breathing room at the bottom of the page */
+  padding-bottom: 3rem; 
   transition: box-shadow 0.5s ease-in-out;
   position: relative;
+}
+
+/* Graphic 2: Fatal Error Screen Warp */
+.fatalGlitchContainer {
+  animation: severeGlitch 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation-iteration-count: 3;
+}
+
+@keyframes severeGlitch {
+  0% { transform: translate(0); filter: hue-rotate(0deg); }
+  20% { transform: translate(-10px, 10px); filter: hue-rotate(-50deg) contrast(200%); box-shadow: inset 0 0 100px red; }
+  40% { transform: translate(-10px, -10px); filter: invert(1); }
+  60% { transform: translate(10px, 10px); filter: contrast(300%) saturate(300%); }
+  80% { transform: translate(10px, -10px); filter: hue-rotate(90deg); box-shadow: inset 0 0 200px red; }
+  100% { transform: translate(0); filter: none; }
 }
 
 .glowRed { box-shadow: inset 0 0 150px rgba(220, 38, 38, 0.05); }
@@ -100,6 +115,43 @@
 
 .sendBtn:hover, .endTurnBtn:hover { opacity: 0.8; }
 
+/* UX 3: Confirmation Panel */
+.confirmPanel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+.pendingDisplay {
+  flex: 1;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  color: var(--yellow-accent);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-family: monospace;
+  font-weight: bold;
+}
+.confirmBtn {
+  padding: 0.75rem 1.5rem;
+  font-weight: bold;
+  border-radius: var(--radius);
+  background: var(--text-main);
+  color: var(--bg-app);
+  transition: opacity 0.2s;
+}
+.cancelBtn {
+  padding: 0.75rem 1.5rem;
+  font-weight: bold;
+  border-radius: var(--radius);
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+.confirmBtn:hover, .cancelBtn:hover { opacity: 0.8; }
+.cancelBtn:hover { color: white; border-color: white; }
+
 .activeCluePanel {
   display: flex;
   align-items: center;
@@ -185,26 +237,45 @@
   min-height: 0;
 }
 
-@media (max-width: 768px) {
-  .grid { gap: 0.25rem; }
-  .clueForm { flex-direction: column; }
-  .clueSelect { width: 100%; }
-}
-
 .footer {
   margin-top: 1rem;
   display: flex;
   gap: 1rem;
-  height: 120px;
-  flex-shrink: 0; /* FIX: Prevents the browser from squashing the footer on tight screens */
+  height: 140px; 
+  flex-shrink: 0; 
+}
+
+/* UI 1: Split Footer Layout */
+.footerLayout {
+  display: flex;
+  flex: 1;
+  gap: 1rem;
+  min-width: 0; 
+}
+
+.logPanel, .clueHistoryPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.panelHeader {
+  font-family: monospace;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.25rem;
 }
 
 .logs {
   flex: 1;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.75rem;
   overflow-y: auto;
   font-family: monospace;
   font-size: 0.85rem;
@@ -249,4 +320,14 @@
 .controlBtn:hover {
   background: var(--border);
   color: var(--text-main);
+}
+
+@media (max-width: 768px) {
+  .grid { gap: 0.25rem; }
+  .clueForm, .confirmPanel { flex-direction: column; }
+  .clueSelect { width: 100%; }
+  .confirmBtn, .cancelBtn { width: 100%; }
+  .pendingDisplay { text-align: center; width: 100%; }
+  .footerLayout { flex-direction: column; }
+  .footer { height: 280px; } 
 }
