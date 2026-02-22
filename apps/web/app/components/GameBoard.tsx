@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { GameState, ROLES } from "@operative/shared";
 import GameCard from "./GameCard";
+import DecipherText from "./DecipherText"; // NEW
 import { useSocket } from "../../context/SocketContext";
 import styles from "./GameBoard.module.css";
 
@@ -34,22 +35,21 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     setSelectedCardId(null); 
   }, [gameState.turn]);
 
-  // NEW: Server-Driven Timer Sync
+  // Server-Driven Timer Sync
   useEffect(() => {
     if (gameState.timerDuration === 0 || gameState.phase !== "playing" || !gameState.turnEndsAt) {
-      setTimeLeft(gameState.timerDuration); // Reset to base or 0
+      setTimeLeft(gameState.timerDuration); 
       return;
     }
 
     const updateTimer = () => {
       if (!gameState.turnEndsAt) return;
-      // Compare server absolute time against current local time to prevent drift
       const remaining = Math.max(0, Math.ceil((gameState.turnEndsAt - Date.now()) / 1000));
       setTimeLeft(remaining);
     };
 
-    updateTimer(); // Initial sync
-    const timer = setInterval(updateTimer, 500); // Check every 500ms for smooth UI updates
+    updateTimer(); 
+    const timer = setInterval(updateTimer, 500); 
 
     return () => clearInterval(timer);
   }, [gameState.turnEndsAt, gameState.timerDuration, gameState.phase]);
@@ -57,7 +57,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const handleCardClick = (cardId: string) => {
     if (!socket || isSpymaster || !isMyTurn || !gameState.currentClue) return;
     
-    // Safe Tap Logic - First tap selects, second tap confirms and fires to server
+    // Safe Tap Logic
     if (selectedCardId === cardId) {
       socket.emit("reveal_card", { roomCode: gameState.roomCode, cardId });
       setSelectedCardId(null); 
@@ -118,137 +118,140 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const containerClass = `${styles.container} ${gameState.phase === 'playing' ? (gameState.turn === 'red' ? styles.glowRed : styles.glowBlue) : ''}`;
 
   return (
-    <div className={containerClass}>
-      
-      {/* --- VICTORY OVERLAY --- */}
-      {gameState.phase === "game_over" && (
-        <div className={styles.overlay}>
-          <div className={styles.overlayContent}>
-            <div style={{fontSize: '4rem', marginBottom: '1rem'}} className="animate-pulse">
-              {gameState.winner === "red" ? "🔴" : "🔵"}
-            </div>
-            <h2 className={`${styles.winnerTitle} ${gameState.winner === "red" ? styles.redWin : styles.blueWin}`}>
-              {gameState.winner?.toUpperCase()} WINS!
-            </h2>
-            <p style={{fontFamily: 'monospace', color: 'var(--text-muted)'}}>MISSION ACCOMPLISHED</p>
-            
-            {isHost ? (
-              <button onClick={handleRestart} className={styles.restartBtn}>PLAY AGAIN</button>
-            ) : <p className="animate-pulse" style={{marginTop: '1rem', fontSize: '0.8rem'}}>Waiting for Host...</p>}
-          </div>
-        </div>
-      )}
-
-      {/* --- ACTION BAR --- */}
-      <div className={styles.actionBar}>
+    <>
+      <div className="crt-overlay" /> {/* NEW: Global Scanlines */}
+      <div className={containerClass}>
         
-        {/* SPYMASTER INPUT */}
-        {gameState.phase === "playing" && isMyTurn && isSpymaster && !gameState.currentClue && (
-          <form onSubmit={submitClue} className={styles.clueForm}>
-            <input 
-              type="text" 
-              placeholder="CLUE WORD" 
-              value={clueWord}
-              onChange={e => setClueWord(e.target.value.toUpperCase().trim())}
-              className={styles.clueInput}
-              autoFocus
-            />
-            <select 
-              value={clueNum}
-              onChange={e => setClueNum(e.target.value)}
-              className={styles.clueSelect}
-            >
-              {[1,2,3,4,5,6,7,8,9].map(n => <option key={n} value={n}>{n}</option>)}
-              <option value="0">0</option>
-              <option value="99">∞</option>
-            </select>
-            <button type="submit" className={styles.sendBtn}>SEND</button>
-          </form>
-        )}
-
-        {/* OPERATIVE GUESSING */}
-        {gameState.phase === "playing" && isMyTurn && !isSpymaster && gameState.currentClue && (
-          <div className={styles.activeCluePanel}>
-            <div className={styles.clueDisplay}>
-              {gameState.currentClue.word} <span style={{color: 'var(--text-muted)'}}>/</span> {gameState.currentClue.number}
+        {/* --- VICTORY OVERLAY --- */}
+        {gameState.phase === "game_over" && (
+          <div className={styles.overlay}>
+            <div className={styles.overlayContent}>
+              <div style={{fontSize: '4rem', marginBottom: '1rem'}} className="animate-pulse">
+                {gameState.winner === "red" ? "🔴" : "🔵"}
+              </div>
+              <h2 className={`${styles.winnerTitle} ${gameState.winner === "red" ? styles.redWin : styles.blueWin}`}>
+                <DecipherText text={`${gameState.winner?.toUpperCase()} WINS!`} speed={40} /> {/* NEW */}
+              </h2>
+              <p style={{fontFamily: 'monospace', color: 'var(--text-muted)'}}>MISSION ACCOMPLISHED</p>
+              
+              {isHost ? (
+                <button onClick={handleRestart} className={styles.restartBtn}>PLAY AGAIN</button>
+              ) : <p className="animate-pulse" style={{marginTop: '1rem', fontSize: '0.8rem'}}>Waiting for Host...</p>}
             </div>
-            <button onClick={endTurn} className={styles.endTurnBtn}>END TURN</button>
           </div>
         )}
 
-        {/* WAITING STATE */}
-        {gameState.phase === "playing" && (!isMyTurn || (!gameState.currentClue && !isSpymaster)) && (
-          <div className={`${styles.waitingPanel} animate-pulse`}>
-            <div style={{width: 10, height: 10, borderRadius: '50%', background: gameState.turn === 'red' ? 'var(--red-primary)' : 'var(--blue-primary)'}} />
-            <span style={{fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.1em'}}>
-              WAITING FOR {gameState.turn.toUpperCase()}...
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* --- SCOREBOARD --- */}
-      <div className={styles.scoreboard}>
-        <div className={`${styles.scoreRed} ${gameState.turn === 'red' ? styles.scoreActive : styles.scoreInactive}`}>
-          RED: {gameState.scores.red}
-        </div>
-        
-        <button onClick={copyCode} className={styles.roomCodeDisplay}>
-          <div style={{fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 4}}>{copied ? "COPIED!" : "SECURE CHANNEL"}</div>
-          <div className={styles.roomCodeBox}>{gameState.roomCode}</div>
+        {/* --- ACTION BAR --- */}
+        <div className={styles.actionBar}>
           
-          {gameState.timerDuration > 0 && gameState.phase === "playing" && (
-            <div style={{ fontSize: '0.8rem', marginTop: 4, color: timeLeft <= 10 ? 'var(--red-primary)' : 'var(--text-muted)', fontWeight: timeLeft <= 10 ? 'bold' : 'normal' }}>
-              TIME: {formatTime(timeLeft)}
+          {/* SPYMASTER INPUT */}
+          {gameState.phase === "playing" && isMyTurn && isSpymaster && !gameState.currentClue && (
+            <form onSubmit={submitClue} className={styles.clueForm}>
+              <input 
+                type="text" 
+                placeholder="CLUE WORD" 
+                value={clueWord}
+                onChange={e => setClueWord(e.target.value.toUpperCase().trim())}
+                className={styles.clueInput}
+                autoFocus
+              />
+              <select 
+                value={clueNum}
+                onChange={e => setClueNum(e.target.value)}
+                className={styles.clueSelect}
+              >
+                {[1,2,3,4,5,6,7,8,9].map(n => <option key={n} value={n}>{n}</option>)}
+                <option value="0">0</option>
+                <option value="99">∞</option>
+              </select>
+              <button type="submit" className={styles.sendBtn}>SEND</button>
+            </form>
+          )}
+
+          {/* OPERATIVE GUESSING */}
+          {gameState.phase === "playing" && isMyTurn && !isSpymaster && gameState.currentClue && (
+            <div className={styles.activeCluePanel}>
+              <div className={styles.clueDisplay}>
+                <DecipherText text={gameState.currentClue.word} speed={20} /> <span style={{color: 'var(--text-muted)'}}>/</span> {gameState.currentClue.number} {/* NEW */}
+              </div>
+              <button onClick={endTurn} className={styles.endTurnBtn}>END TURN</button>
             </div>
           )}
-        </button>
-        
-        <div className={`${styles.scoreBlue} ${gameState.turn === 'blue' ? styles.scoreActive : styles.scoreInactive}`}>
-          BLUE: {gameState.scores.blue}
-        </div>
-      </div>
 
-      {/* --- GRID --- */}
-      <div className={styles.grid}>
-        {gameState.board.map((card) => (
-          <GameCard
-            key={card.id}
-            card={card}
-            onClick={() => handleCardClick(card.id)}
-            disabled={gameState.phase === "game_over" || (isMyTurn && !isSpymaster && !gameState.currentClue)}
-            isSpymaster={showSpymasterView}
-            isSelected={selectedCardId === card.id} 
-          />
-        ))}
-      </div>
-
-      {/* --- FOOTER --- */}
-      <div className={styles.footer}>
-        <div className={styles.logs}>
-          {gameState.logs.slice().reverse().map((log, i) => (
-            <div key={i} className={styles.logEntry}>
-               {renderLogEntry(log)}
+          {/* WAITING STATE */}
+          {gameState.phase === "playing" && (!isMyTurn || (!gameState.currentClue && !isSpymaster)) && (
+            <div className={styles.waitingPanel}>
+              <div style={{width: 10, height: 10, borderRadius: '50%', background: gameState.turn === 'red' ? 'var(--red-primary)' : 'var(--blue-primary)', animation: 'pulse 1s infinite'}} />
+              <span style={{fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.1em'}}>
+                <DecipherText text={`WAITING FOR ${gameState.turn.toUpperCase()}...`} speed={30} /> {/* NEW */}
+              </span>
             </div>
+          )}
+        </div>
+
+        {/* --- SCOREBOARD --- */}
+        <div className={styles.scoreboard}>
+          <div className={`${styles.scoreRed} ${gameState.turn === 'red' ? styles.scoreActive : styles.scoreInactive}`}>
+            RED: {gameState.scores.red}
+          </div>
+          
+          <button onClick={copyCode} className={styles.roomCodeDisplay}>
+            <div style={{fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 4}}>{copied ? "COPIED!" : "SECURE CHANNEL"}</div>
+            <div className={styles.roomCodeBox}>{gameState.roomCode}</div>
+            
+            {gameState.timerDuration > 0 && gameState.phase === "playing" && (
+              <div style={{ fontSize: '0.8rem', marginTop: 4, color: timeLeft <= 10 ? 'var(--red-primary)' : 'var(--text-muted)', fontWeight: timeLeft <= 10 ? 'bold' : 'normal' }}>
+                TIME: {formatTime(timeLeft)}
+              </div>
+            )}
+          </button>
+          
+          <div className={`${styles.scoreBlue} ${gameState.turn === 'blue' ? styles.scoreActive : styles.scoreInactive}`}>
+            BLUE: {gameState.scores.blue}
+          </div>
+        </div>
+
+        {/* --- GRID --- */}
+        <div className={styles.grid}>
+          {gameState.board.map((card) => (
+            <GameCard
+              key={card.id}
+              card={card}
+              onClick={() => handleCardClick(card.id)}
+              disabled={gameState.phase === "game_over" || (isMyTurn && !isSpymaster && !gameState.currentClue)}
+              isSpymaster={showSpymasterView}
+              isSelected={selectedCardId === card.id} 
+            />
           ))}
         </div>
 
-        <div className={styles.controls}>
-           {!isSpymaster && (
-             <button onClick={() => setViewAsSpymaster(!viewAsSpymaster)} className={styles.controlBtn}>
-               {viewAsSpymaster ? "HIDE CHEAT" : "VIEW CHEAT"}
+        {/* --- FOOTER --- */}
+        <div className={styles.footer}>
+          <div className={styles.logs}>
+            {gameState.logs.slice().reverse().map((log, i) => (
+              <div key={i} className={styles.logEntry}>
+                 {renderLogEntry(log)}
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.controls}>
+             {!isSpymaster && (
+               <button onClick={() => setViewAsSpymaster(!viewAsSpymaster)} className={styles.controlBtn}>
+                 {viewAsSpymaster ? "HIDE CHEAT" : "VIEW CHEAT"}
+               </button>
+             )}
+             {isHost && (
+               <button onClick={handleRestart} className={styles.controlBtn} style={{borderColor: 'var(--red-dark)', color: 'var(--red-primary)'}}>
+                 RESET
+               </button>
+             )}
+             <button onClick={leaveMission} className={styles.controlBtn}>
+               ABORT
              </button>
-           )}
-           {isHost && (
-             <button onClick={handleRestart} className={styles.controlBtn} style={{borderColor: 'var(--red-dark)', color: 'var(--red-primary)'}}>
-               RESET
-             </button>
-           )}
-           <button onClick={leaveMission} className={styles.controlBtn}>
-             ABORT
-           </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
