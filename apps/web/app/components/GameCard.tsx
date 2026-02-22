@@ -11,7 +11,7 @@ interface GameCardProps {
   disabled: boolean;
   isSpymaster: boolean;
   isSelected?: boolean;
-  targetingPlayers?: string[]; // NEW
+  targetingPlayers?: string[]; 
 }
 
 export default function GameCard({ card, onClick, disabled, isSpymaster, isSelected, targetingPlayers = [] }: GameCardProps) {
@@ -51,6 +51,9 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isInteractive || !cardRef.current) return;
+    // UI 2: Disables Parallax hover effect on mobile touchscreens 
+    if (window.matchMedia && !window.matchMedia("(hover: hover)").matches) return;
+
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left; 
     const y = e.clientY - rect.top;  
@@ -65,6 +68,7 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
 
   const handleMouseLeave = () => {
     if (!isInteractive) return;
+    if (window.matchMedia && !window.matchMedia("(hover: hover)").matches) return;
     setTilt({ x: 0, y: 0 }); 
   };
 
@@ -85,7 +89,6 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
              <span style={{position:'absolute', top: 4, right: 4, fontSize: 10}}>☠</span>
           )}
           
-          {/* NEW: Synchronized Teammate Targeting UI */}
           {!card.revealed && targetingPlayers.length > 0 && (
             <>
               <div className={styles.targetOverlay} />
@@ -98,7 +101,14 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
 
         {/* BACK */}
         <div className={`${styles.face} ${styles.back} ${getBackClass()}`}>
-          {card.type === CARD_TYPES.ASSASSIN ? <span className={styles.assassinIcon}>☠</span> : card.word}
+          {/* Graphic 1 & UX 1: Colorblind & Aesthetic Stamps */}
+          {card.type === CARD_TYPES.RED && <span className={styles.teamIcon}>⭐</span>}
+          {card.type === CARD_TYPES.BLUE && <span className={styles.teamIcon}>🛡️</span>}
+          {card.type === CARD_TYPES.NEUTRAL && <span className={styles.teamIcon}>➖</span>}
+
+          <span style={{ position: 'relative', zIndex: 1 }}>
+            {card.type === CARD_TYPES.ASSASSIN ? <span className={styles.assassinIcon}>☠</span> : card.word}
+          </span>
         </div>
       </div>
     </div>
