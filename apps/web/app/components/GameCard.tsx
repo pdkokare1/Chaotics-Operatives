@@ -9,7 +9,7 @@ interface GameCardProps {
   onClick: () => void;
   disabled: boolean;
   isSpymaster: boolean;
-  isSelected?: boolean; // NEW: Prop to track mobile safe taps
+  isSelected?: boolean;
 }
 
 export default function GameCard({ card, onClick, disabled, isSpymaster, isSelected }: GameCardProps) {
@@ -35,13 +35,20 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
     }
   };
 
+  // NEW: Determine high-impact animation classes
+  const getAnimationClass = () => {
+    if (!card.revealed) return "";
+    if (card.type === CARD_TYPES.ASSASSIN) return styles.glitchAnim;
+    if (card.type === CARD_TYPES.RED || card.type === CARD_TYPES.BLUE) return styles.flashAnim;
+    return "";
+  };
+
   const isInteractive = !card.revealed && !disabled && !isSpymaster;
 
   return (
     <div className={styles.container}>
       <div 
-        // Embedded the new isSelected class dynamically here
-        className={`${styles.cardInner} ${card.revealed ? styles.isRevealed : ""} ${isInteractive ? styles.isInteractive : ""} ${isSelected ? styles.isSelected : ""}`}
+        className={`${styles.cardInner} ${card.revealed ? styles.isRevealed : ""} ${isInteractive ? styles.isInteractive : ""} ${isSelected ? styles.isSelected : ""} ${getAnimationClass()}`}
         onClick={isInteractive ? onClick : undefined}
       >
         {/* FRONT */}
