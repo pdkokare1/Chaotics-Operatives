@@ -1,228 +1,252 @@
 /* apps/web/app/components/GameBoard.module.css */
+/* (Keep all existing styles above, appending the below classes) */
+
 .container {
-  width: 100%;
-  min-height: 100vh;
-  margin: 0 auto;
-  padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  background-color: var(--bg-app);
-  transition: box-shadow 1s ease-in-out; /* Smoothly animates the glow */
+  height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  transition: box-shadow 0.5s ease-in-out;
+  position: relative;
 }
 
-/* --- NEW: Dynamic Ambient Glows --- */
-.glowRed { box-shadow: inset 0 0 200px rgba(220, 38, 38, 0.08); }
-.glowBlue { box-shadow: inset 0 0 200px rgba(37, 99, 235, 0.08); }
+.glowRed { box-shadow: inset 0 0 150px rgba(220, 38, 38, 0.05); }
+.glowBlue { box-shadow: inset 0 0 150px rgba(37, 99, 235, 0.05); }
 
 .overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.85);
-  backdrop-filter: blur(5px);
 }
+
 .overlayContent {
+  text-align: center;
+  padding: 3rem;
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  padding: 2rem;
   border-radius: var(--radius-lg);
-  text-align: center;
-  max-width: 500px;
-  width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
+
 .winnerTitle {
-  font-size: 3rem;
-  font-weight: 900;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   margin-bottom: 0.5rem;
 }
+
 .redWin { color: var(--red-primary); }
 .blueWin { color: var(--blue-primary); }
 
 .restartBtn {
-  background: white;
-  color: black;
-  padding: 0.75rem 2rem;
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
   font-weight: bold;
-  border-radius: 9999px;
-  font-size: 1.1rem;
-  margin-top: 1.5rem;
+  background: var(--text-main);
+  color: var(--bg-app);
+  border-radius: var(--radius);
+  transition: transform 0.2s;
 }
+.restartBtn:hover { transform: scale(1.05); }
 
 .actionBar {
-  width: 100%;
-  max-width: 800px;
-  margin-bottom: 2rem;
-  min-height: 80px;
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10;
+  padding: 1rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  min-height: 80px;
 }
 
 .clueForm {
   display: flex;
   gap: 0.5rem;
   width: 100%;
-  background: var(--bg-card);
-  padding: 0.5rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
+  max-width: 600px;
 }
 
-.clueInput {
-  flex: 1;
-  background: var(--bg-panel);
-  border: none;
-  color: white;
-  padding: 0.5rem 1rem;
+.clueInput, .clueSelect {
+  padding: 0.75rem 1rem;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  border-radius: var(--radius);
+  font-size: 1rem;
   font-weight: bold;
-  border-radius: 4px;
-}
-.clueSelect {
-  background: var(--bg-panel);
-  border: none;
-  color: white;
-  padding: 0.5rem;
-  font-weight: bold;
-  border-radius: 4px;
-}
-.sendBtn {
-  background: white;
-  color: black;
-  font-weight: 900;
-  padding: 0.5rem 1.5rem;
-  border-radius: 4px;
 }
 
-.activeCluePanel {
-  display: flex;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(38, 38, 38, 0.9);
-  padding: 1rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-}
-.clueDisplay {
-  font-size: 2rem;
-  font-weight: 900;
-  line-height: 1;
-  color: white;
-}
-.endTurnBtn {
-  background: var(--border);
-  color: white;
+.clueInput { flex: 1; text-transform: uppercase; }
+.clueSelect { width: 80px; text-align: center; }
+
+.sendBtn, .endTurnBtn {
   padding: 0.75rem 1.5rem;
   font-weight: bold;
   border-radius: var(--radius);
+  background: var(--text-main);
+  color: var(--bg-app);
+  transition: opacity 0.2s;
 }
-.endTurnBtn:hover { background: var(--red-primary); }
+
+.sendBtn:hover, .endTurnBtn:hover { opacity: 0.8; }
+
+.activeCluePanel {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.clueDisplay {
+  font-size: 1.5rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
 
 .waitingPanel {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: rgba(0,0,0,0.3);
-  padding: 0.5rem 1.5rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255,255,255,0.1);
+  gap: 0.5rem;
+  color: var(--text-muted);
 }
 
 .scoreboard {
-  width: 100%;
-  max-width: 800px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  font-family: monospace;
-  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0 1rem;
 }
-.scoreRed { font-weight: 900; color: var(--red-primary); transition: all 0.5s; }
-.scoreBlue { font-weight: 900; color: var(--blue-primary); transition: all 0.5s; }
-.scoreInactive { opacity: 0.4; transform: scale(0.9); }
-.scoreActive { transform: scale(1.1); text-shadow: 0 0 15px currentColor; }
 
-.roomCodeDisplay {
+/* NEW: Progress Bar Layouts */
+.progressContainer {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  background: none;
+  gap: 4px;
 }
-.roomCodeBox {
-  background: var(--bg-panel);
-  padding: 0.5rem 1.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+
+.progressBar {
+  display: flex;
+  gap: 4px;
+}
+
+.progressSegment {
+  width: 10px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1px;
+}
+
+.segmentRedFilled { background: var(--red-primary); box-shadow: 0 0 5px var(--red-primary); }
+.segmentBlueFilled { background: var(--blue-primary); box-shadow: 0 0 5px var(--blue-primary); }
+
+.scoreRed, .scoreBlue {
+  font-size: 1.5rem;
   font-weight: bold;
-  letter-spacing: 0.1em;
-  color: white;
+  transition: opacity 0.3s;
+}
+
+.scoreRed { color: var(--red-primary); }
+.scoreBlue { color: var(--blue-primary); }
+
+.scoreActive { opacity: 1; text-shadow: 0 0 10px currentColor; }
+.scoreInactive { opacity: 0.4; }
+
+.roomCodeDisplay {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  text-align: center;
+  transition: background 0.2s;
+}
+.roomCodeDisplay:hover { background: var(--border); }
+
+.roomCodeBox {
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: bold;
+  letter-spacing: 0.2em;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 0.5rem;
-  width: 100%;
-  max-width: 800px;
-  margin-bottom: 2rem;
+  flex: 1;
+  min-height: 0;
 }
 
-@media (min-width: 768px) {
-  .grid { gap: 1rem; }
+@media (max-width: 768px) {
+  .grid { gap: 0.25rem; }
+  .clueForm { flex-direction: column; }
+  .clueSelect { width: 100%; }
 }
 
 .footer {
-  width: 100%;
-  max-width: 800px;
+  margin-top: 1rem;
   display: flex;
   gap: 1rem;
+  height: 120px;
 }
+
 .logs {
   flex: 1;
-  height: 150px;
-  background: rgba(0,0,0,0.3);
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.75rem;
   overflow-y: auto;
   font-family: monospace;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-.logEntry { 
-  margin-bottom: 0.35rem; 
-  border-bottom: 1px solid rgba(255,255,255,0.05); 
-  padding-bottom: 0.25rem;
+  font-size: 0.85rem;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-/* --- NEW: Mission Intel Tags --- */
-.tagRed { color: var(--red-primary); border: 1px solid var(--red-border); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
-.tagBlue { color: var(--blue-primary); border: 1px solid var(--blue-border); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
-.tagWarn { color: var(--yellow-accent); border: 1px solid var(--yellow-accent); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
-.tagFatal { color: white; background: var(--red-primary); padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; animation: pulse 1s infinite; }
-.tagSystem { color: #525252; border: 1px solid #404040; padding: 0 4px; border-radius: 2px; font-weight: bold; font-size: 0.65rem; }
+.logEntry { color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; }
+
+.tagRed, .tagBlue, .tagWarn, .tagFatal, .tagSystem {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.tagRed { background: rgba(220, 38, 38, 0.2); color: var(--red-primary); }
+.tagBlue { background: rgba(37, 99, 235, 0.2); color: var(--blue-primary); }
+.tagWarn { background: rgba(250, 204, 21, 0.2); color: var(--yellow-accent); }
+.tagFatal { background: var(--red-primary); color: white; animation: pulse 1s infinite; }
+.tagSystem { background: var(--border); color: var(--text-muted); }
 
 .controls {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  width: 120px;
 }
+
 .controlBtn {
-  font-size: 0.75rem;
-  padding: 0.5rem;
+  flex: 1;
+  background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 4px;
   color: var(--text-muted);
-  background: none;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-weight: bold;
+  transition: all 0.2s;
 }
-.controlBtn:hover { color: white; border-color: white; }
+
+.controlBtn:hover {
+  background: var(--border);
+  color: var(--text-main);
+}
