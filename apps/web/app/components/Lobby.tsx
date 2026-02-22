@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { GameState, Player, TEAMS, ROLES } from "@operative/shared";
 import { useSocket } from "../../context/SocketContext";
-import DecipherText from "./DecipherText"; // NEW
+import DecipherText from "./DecipherText"; 
 import styles from "./Lobby.module.css";
 
 interface LobbyProps {
@@ -58,12 +58,12 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
 
   return (
     <>
-      <div className="crt-overlay" /> {/* NEW: Global Scanlines */}
+      <div className="crt-overlay" /> 
       <div className={styles.container}>
         
         <div className={styles.header}>
           <h2 className={styles.title}>
-            <DecipherText text="MISSION LOBBY" /> {/* NEW */}
+            <DecipherText text="MISSION LOBBY" /> 
           </h2>
           <div className={styles.codeBadge}>
             <span className={styles.codeLabel}>ROOM CODE:</span>
@@ -79,7 +79,13 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
             </button>
             <div className={styles.playerList}>
               {redTeam.map(player => (
-                <PlayerCard key={player.id} player={player} isMe={player.id === currentPlayerId} onRoleSwitch={switchRole} />
+                <PlayerCard 
+                  key={player.id} 
+                  player={player} 
+                  isMe={player.id === currentPlayerId} 
+                  onRoleSwitch={switchRole} 
+                  isHost={player.id === localPlayers[0]?.id} // UI 3: Identify Host
+                />
               ))}
               {redTeam.length === 0 && <div className={styles.emptyState}>No Agents</div>}
             </div>
@@ -92,7 +98,13 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
             </button>
             <div className={styles.playerList}>
               {blueTeam.map(player => (
-                <PlayerCard key={player.id} player={player} isMe={player.id === currentPlayerId} onRoleSwitch={switchRole} />
+                <PlayerCard 
+                  key={player.id} 
+                  player={player} 
+                  isMe={player.id === currentPlayerId} 
+                  onRoleSwitch={switchRole} 
+                  isHost={player.id === localPlayers[0]?.id} // UI 3: Identify Host
+                />
               ))}
               {blueTeam.length === 0 && <div className={styles.emptyState}>No Agents</div>}
             </div>
@@ -128,7 +140,7 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
           </div>
         ) : (
           <div style={{fontFamily: 'monospace', color: 'var(--text-muted)'}}>
-            <DecipherText text="WAITING FOR HOST TO START..." /> {/* NEW */}
+            <DecipherText text="WAITING FOR HOST TO START..." /> 
           </div>
         )}
 
@@ -143,7 +155,7 @@ export default function Lobby({ gameState, currentPlayerId }: LobbyProps) {
   );
 }
 
-function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: boolean, onRoleSwitch: (r: string) => void }) {
+function PlayerCard({ player, isMe, onRoleSwitch, isHost }: { player: Player, isMe: boolean, onRoleSwitch: (r: string) => void, isHost: boolean }) {
   const [localRole, setLocalRole] = useState(player.role);
   
   useEffect(() => {
@@ -163,7 +175,7 @@ function PlayerCard({ player, isMe, onRoleSwitch }: { player: Player, isMe: bool
       <div className={styles.playerInfo}>
         <div className={`${styles.roleDot} ${isSpy ? styles.isSpymaster : ""} ${isSpy ? "animate-pulse" : ""}`} />
         <span className={`${styles.playerName} ${isMe ? styles.nameActive : ""}`}>
-          {player.name} {isMe && "(YOU)"}
+          {isHost && "👑 "} {player.name} {isMe && "(YOU)"}
         </span>
       </div>
 
