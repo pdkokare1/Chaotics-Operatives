@@ -1,3 +1,4 @@
+/* apps/web/app/globals.css */
 :root {
   /* --- Palette --- */
   --bg-app: #0a0a0a;
@@ -34,6 +35,12 @@ body {
   color: var(--text-main);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.5;
+  /* NEW: Tactical Grid Background */
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
 }
 
 button {
@@ -59,4 +66,21 @@ button:disabled {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* --- NEW: CRT Scanlines & Terminal Glow --- */
+.crt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  background: 
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+    linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background-size: 100% 3px, 3px 100%;
+  box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+  opacity: 0.6;
 }
