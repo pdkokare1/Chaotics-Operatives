@@ -1,7 +1,7 @@
 // apps/web/app/components/GameCard.tsx
 "use client";
 
-import { useRef, useState } from "react"; // NEW: For 3D Parallax Tracking
+import { useRef, useState } from "react"; 
 import { Card, CARD_TYPES } from "@operative/shared";
 import styles from "./GameCard.module.css";
 
@@ -11,11 +11,11 @@ interface GameCardProps {
   disabled: boolean;
   isSpymaster: boolean;
   isSelected?: boolean;
+  targetingPlayers?: string[]; // NEW
 }
 
-export default function GameCard({ card, onClick, disabled, isSpymaster, isSelected }: GameCardProps) {
+export default function GameCard({ card, onClick, disabled, isSpymaster, isSelected, targetingPlayers = [] }: GameCardProps) {
   
-  // NEW: Parallax State & Ref
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
@@ -49,7 +49,6 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
 
   const isInteractive = !card.revealed && !disabled && !isSpymaster;
 
-  // NEW: Mouse tracking for physical card tilt
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isInteractive || !cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
@@ -58,7 +57,6 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     
-    // Calculate tilt (Max 15 degrees)
     const rotateX = ((y - centerY) / centerY) * -15; 
     const rotateY = ((x - centerX) / centerX) * 15;
     
@@ -67,7 +65,7 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
 
   const handleMouseLeave = () => {
     if (!isInteractive) return;
-    setTilt({ x: 0, y: 0 }); // Snap back to flat
+    setTilt({ x: 0, y: 0 }); 
   };
 
   return (
@@ -78,7 +76,6 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
         onClick={isInteractive ? onClick : undefined}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        // Apply the dynamic 3D tilt ONLY if the card is interactive. If revealed, undefined lets CSS take over.
         style={isInteractive ? { transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` } : undefined}
       >
         {/* FRONT */}
@@ -86,6 +83,16 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
           {card.word}
           {isSpymaster && card.type === CARD_TYPES.ASSASSIN && (
              <span style={{position:'absolute', top: 4, right: 4, fontSize: 10}}>☠</span>
+          )}
+          
+          {/* NEW: Synchronized Teammate Targeting UI */}
+          {!card.revealed && targetingPlayers.length > 0 && (
+            <>
+              <div className={styles.targetOverlay} />
+              <div className={styles.targetNameBadge}>
+                {targetingPlayers.length === 1 ? targetingPlayers[0] : `${targetingPlayers.length} AGENTS`}
+              </div>
+            </>
           )}
         </div>
 
