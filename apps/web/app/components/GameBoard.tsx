@@ -4,7 +4,8 @@
 import { useState, useEffect } from "react";
 import { GameState, ROLES } from "@operative/shared";
 import GameCard from "./GameCard";
-import DecipherText from "./DecipherText"; // NEW
+import DecipherText from "./DecipherText"; 
+import TypewriterText from "./TypewriterText"; // NEW: Intel Feed
 import { useSocket } from "../../context/SocketContext";
 import styles from "./GameBoard.module.css";
 
@@ -19,8 +20,6 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const [copied, setCopied] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState(gameState.timerDuration);
-  
-  // State to track "Mobile Safe Taps" (require double-click to reveal)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const myPlayer = gameState.players.find(p => p.id === socket?.id);
@@ -30,12 +29,14 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const [viewAsSpymaster, setViewAsSpymaster] = useState(false);
   const showSpymasterView = isSpymaster || viewAsSpymaster;
 
-  // Clear active selections if the turn changes
+  // Clear active selections and targets if the turn changes
   useEffect(() => {
     setSelectedCardId(null); 
+    if (socket && myPlayer) {
+      socket.emit("set_target", { roomCode: gameState.roomCode, cardId: null });
+    }
   }, [gameState.turn]);
 
-  // Server-Driven Timer Sync
   useEffect(() => {
     if (gameState.timerDuration === 0 || gameState.phase !== "playing" || !gameState.turnEndsAt) {
       setTimeLeft(gameState.timerDuration); 
@@ -57,12 +58,13 @@ export default function GameBoard({ gameState }: GameBoardProps) {
   const handleCardClick = (cardId: string) => {
     if (!socket || isSpymaster || !isMyTurn || !gameState.currentClue) return;
     
-    // Safe Tap Logic
+    // Safe Tap Logic + Synchronized Targeting
     if (selectedCardId === cardId) {
       socket.emit("reveal_card", { roomCode: gameState.roomCode, cardId });
       setSelectedCardId(null); 
     } else {
       setSelectedCardId(cardId); 
+      socket.emit("set_target", { roomCode: gameState.roomCode, cardId }); // NEW
     }
   };
 
@@ -95,34 +97,28 @@ export default function GameBoard({ gameState }: GameBoardProps) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // Mission Intel Feed Parser
-  const renderLogEntry = (log: string) => {
-    if (log.includes("FATAL ERROR")) {
-      return <><span className={styles.tagFatal}>FATAL</span> <span style={{color: 'var(--red-primary)'}}>{log.replace("FATAL ERROR: ", "")}</span></>;
-    }
-    if (log.includes("civilian")) {
-      return <><span className={styles.tagWarn}>INTEL</span> <span style={{color: 'var(--yellow-accent)'}}>{log}</span></>;
-    }
-    if (log.startsWith("RED") || log.includes("Red Team")) {
-      return <><span className={styles.tagRed}>RED</span> {log.replace(/^RED\s/, "")}</>;
-    }
-    if (log.startsWith("BLUE") || log.includes("Blue Team")) {
-      return <><span className={styles.tagBlue}>BLUE</span> {log.replace(/^BLUE\s/, "")}</>;
-    }
-    if (log.includes("MISSION") || log.includes("SYSTEM")) {
-      return <><span className={styles.tagSystem}>SYSTEM</span> {log.replace("SYSTEM OVERRIDE: ", "")}</>;
-    }
-    return <><span className={styles.tagSystem}>INFO</span> {log}</>;
+  // NEW: Teletype Text Wrapping for the freshest log
+  const renderLogEntry = (log: string, isNewest: boolean) => {
+    const LogText = ({ text, color }: { text: string, color?: string }) => (
+      <span style={{ color }}>{isNewest ? <TypewriterText text={text} speed={25} /> : text}</span>
+    );
+
+    if (log.includes("FATAL ERROR")) return <><span className={styles.tagFatal}>FATAL</span> <LogText text={log.replace("FATAL ERROR: ", "")} color="var(--red-primary)" /></>;
+    if (log.includes("civilian")) return <><span className={styles.tagWarn}>INTEL</span> <LogText text={log} color="var(--yellow-accent)" /></>;
+    if (log.startsWith("RED") || log.includes("Red Team")) return <><span className={styles.tagRed}>RED</span> <LogText text={log.replace(/^RED\s/, "")} /></>;
+    if (log.startsWith("BLUE") || log.includes("Blue Team")) return <><span className={styles.tagBlue}>BLUE</span> <LogText text={log.replace(/^BLUE\s/, "")} /></>;
+    if (log.includes("MISSION") || log.includes("SYSTEM")) return <><span className={styles.tagSystem}>SYSTEM</span> <LogText text={log.replace("SYSTEM OVERRIDE: ", "")} /></>;
+    
+    return <><span className={styles.tagSystem}>INFO</span> <LogText text={log} /></>;
   };
 
   const containerClass = `${styles.container} ${gameState.phase === 'playing' ? (gameState.turn === 'red' ? styles.glowRed : styles.glowBlue) : ''}`;
 
   return (
     <>
-      <div className="crt-overlay" /> {/* NEW: Global Scanlines */}
+      <div className="crt-overlay" /> 
       <div className={containerClass}>
         
-        {/* --- VICTORY OVERLAY --- */}
         {gameState.phase === "game_over" && (
           <div className={styles.overlay}>
             <div className={styles.overlayContent}>
@@ -130,7 +126,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
                 {gameState.winner === "red" ? "🔴" : "🔵"}
               </div>
               <h2 className={`${styles.winnerTitle} ${gameState.winner === "red" ? styles.redWin : styles.blueWin}`}>
-                <DecipherText text={`${gameState.winner?.toUpperCase()} WINS!`} speed={40} /> {/* NEW */}
+                <DecipherText text={`${gameState.winner?.toUpperCase()} WINS!`} speed={40} /> 
               </h2>
               <p style={{fontFamily: 'monospace', color: 'var(--text-muted)'}}>MISSION ACCOMPLISHED</p>
               
@@ -141,10 +137,7 @@ export default function GameBoard({ gameState }: GameBoardProps) {
           </div>
         )}
 
-        {/* --- ACTION BAR --- */}
         <div className={styles.actionBar}>
-          
-          {/* SPYMASTER INPUT */}
           {gameState.phase === "playing" && isMyTurn && isSpymaster && !gameState.currentClue && (
             <form onSubmit={submitClue} className={styles.clueForm}>
               <input 
@@ -168,22 +161,20 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             </form>
           )}
 
-          {/* OPERATIVE GUESSING */}
           {gameState.phase === "playing" && isMyTurn && !isSpymaster && gameState.currentClue && (
             <div className={styles.activeCluePanel}>
               <div className={styles.clueDisplay}>
-                <DecipherText text={gameState.currentClue.word} speed={20} /> <span style={{color: 'var(--text-muted)'}}>/</span> {gameState.currentClue.number} {/* NEW */}
+                <DecipherText text={gameState.currentClue.word} speed={20} /> <span style={{color: 'var(--text-muted)'}}>/</span> {gameState.currentClue.number} 
               </div>
               <button onClick={endTurn} className={styles.endTurnBtn}>END TURN</button>
             </div>
           )}
 
-          {/* WAITING STATE */}
           {gameState.phase === "playing" && (!isMyTurn || (!gameState.currentClue && !isSpymaster)) && (
             <div className={styles.waitingPanel}>
               <div style={{width: 10, height: 10, borderRadius: '50%', background: gameState.turn === 'red' ? 'var(--red-primary)' : 'var(--blue-primary)', animation: 'pulse 1s infinite'}} />
               <span style={{fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.1em'}}>
-                <DecipherText text={`WAITING FOR ${gameState.turn.toUpperCase()}...`} speed={30} /> {/* NEW */}
+                <DecipherText text={`WAITING FOR ${gameState.turn.toUpperCase()}...`} speed={30} /> 
               </span>
             </div>
           )}
@@ -191,8 +182,14 @@ export default function GameBoard({ gameState }: GameBoardProps) {
 
         {/* --- SCOREBOARD --- */}
         <div className={styles.scoreboard}>
-          <div className={`${styles.scoreRed} ${gameState.turn === 'red' ? styles.scoreActive : styles.scoreInactive}`}>
-            RED: {gameState.scores.red}
+          <div className={`${styles.progressContainer} ${gameState.turn === 'red' ? styles.scoreActive : styles.scoreInactive}`}>
+            {/* NEW: Explicitly kept numbers alongside the progress bars as requested */}
+            <div className={styles.scoreRed}>RED: {gameState.scores.red}</div>
+            <div className={styles.progressBar}>
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className={`${styles.progressSegment} ${i < (9 - gameState.scores.red) ? styles.segmentRedFilled : ''}`} />
+              ))}
+            </div>
           </div>
           
           <button onClick={copyCode} className={styles.roomCodeDisplay}>
@@ -206,31 +203,45 @@ export default function GameBoard({ gameState }: GameBoardProps) {
             )}
           </button>
           
-          <div className={`${styles.scoreBlue} ${gameState.turn === 'blue' ? styles.scoreActive : styles.scoreInactive}`}>
-            BLUE: {gameState.scores.blue}
+          <div className={`${styles.progressContainer} ${gameState.turn === 'blue' ? styles.scoreActive : styles.scoreInactive}`}>
+            {/* NEW: Explicitly kept numbers alongside the progress bars as requested */}
+            <div className={styles.scoreBlue}>BLUE: {gameState.scores.blue}</div>
+            <div className={styles.progressBar}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className={`${styles.progressSegment} ${i < (8 - gameState.scores.blue) ? styles.segmentBlueFilled : ''}`} />
+              ))}
+            </div>
           </div>
         </div>
 
         {/* --- GRID --- */}
         <div className={styles.grid}>
-          {gameState.board.map((card) => (
-            <GameCard
-              key={card.id}
-              card={card}
-              onClick={() => handleCardClick(card.id)}
-              disabled={gameState.phase === "game_over" || (isMyTurn && !isSpymaster && !gameState.currentClue)}
-              isSpymaster={showSpymasterView}
-              isSelected={selectedCardId === card.id} 
-            />
-          ))}
+          {gameState.board.map((card) => {
+            // NEW: Gather teammate names who are targeting this card
+            const targetingTeammates = gameState.players
+              .filter(p => p.currentTarget === card.id && p.id !== socket?.id && p.team === myPlayer?.team)
+              .map(p => p.name);
+
+            return (
+              <GameCard
+                key={card.id}
+                card={card}
+                onClick={() => handleCardClick(card.id)}
+                disabled={gameState.phase === "game_over" || (isMyTurn && !isSpymaster && !gameState.currentClue)}
+                isSpymaster={showSpymasterView}
+                isSelected={selectedCardId === card.id} 
+                targetingPlayers={targetingTeammates} // Passed to card
+              />
+            )
+          })}
         </div>
 
-        {/* --- FOOTER --- */}
         <div className={styles.footer}>
           <div className={styles.logs}>
             {gameState.logs.slice().reverse().map((log, i) => (
               <div key={i} className={styles.logEntry}>
-                 {renderLogEntry(log)}
+                 {/* isNewest = true ONLY for the first (top) log so only one typewriter runs at a time */}
+                 {renderLogEntry(log, i === 0)} 
               </div>
             ))}
           </div>
