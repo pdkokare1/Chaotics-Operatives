@@ -1,6 +1,7 @@
 // apps/web/app/components/GameCard.tsx
 "use client";
 
+import { useRef, useState } from "react"; // NEW: For 3D Parallax Tracking
 import { Card, CARD_TYPES } from "@operative/shared";
 import styles from "./GameCard.module.css";
 
@@ -14,6 +15,10 @@ interface GameCardProps {
 
 export default function GameCard({ card, onClick, disabled, isSpymaster, isSelected }: GameCardProps) {
   
+  // NEW: Parallax State & Ref
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
   const getBackClass = () => {
     switch (card.type) {
       case CARD_TYPES.RED: return styles.backRed;
@@ -35,7 +40,6 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
     }
   };
 
-  // NEW: Determine high-impact animation classes
   const getAnimationClass = () => {
     if (!card.revealed) return "";
     if (card.type === CARD_TYPES.ASSASSIN) return styles.glitchAnim;
@@ -45,11 +49,37 @@ export default function GameCard({ card, onClick, disabled, isSpymaster, isSelec
 
   const isInteractive = !card.revealed && !disabled && !isSpymaster;
 
+  // NEW: Mouse tracking for physical card tilt
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isInteractive || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left; 
+    const y = e.clientY - rect.top;  
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Calculate tilt (Max 15 degrees)
+    const rotateX = ((y - centerY) / centerY) * -15; 
+    const rotateY = ((x - centerX) / centerX) * 15;
+    
+    setTilt({ x: rotateX, y: rotateY });
+  };
+
+  const handleMouseLeave = () => {
+    if (!isInteractive) return;
+    setTilt({ x: 0, y: 0 }); // Snap back to flat
+  };
+
   return (
     <div className={styles.container}>
       <div 
+        ref={cardRef}
         className={`${styles.cardInner} ${card.revealed ? styles.isRevealed : ""} ${isInteractive ? styles.isInteractive : ""} ${isSelected ? styles.isSelected : ""} ${getAnimationClass()}`}
         onClick={isInteractive ? onClick : undefined}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        // Apply the dynamic 3D tilt ONLY if the card is interactive. If revealed, undefined lets CSS take over.
+        style={isInteractive ? { transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` } : undefined}
       >
         {/* FRONT */}
         <div className={`${styles.face} ${styles.front} ${getHintClass()}`}>
